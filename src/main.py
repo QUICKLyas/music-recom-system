@@ -10,3 +10,4 @@ userTagsController = userTagC.UserTagsController(users, tags)
 us = userTagsController.getUsers()
 tag = userTagsController.getTags()
 print(us, tag)
+# return us

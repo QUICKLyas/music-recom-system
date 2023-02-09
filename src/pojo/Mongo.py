@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 
-import utils.CUser as cu
+import utils.MongoUser as cu
 
 
 class Conn (object):

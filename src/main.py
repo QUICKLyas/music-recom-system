@@ -14,4 +14,5 @@ import dao.MongoUserSong as mus
 m = mus.UserSongRecom()
 # 需要获取用户名
 diction = m.makeRecomAnswer()
-print(diction)
+# print(diction)
+m.saveUserSongRecomAnswer(diction=diction)

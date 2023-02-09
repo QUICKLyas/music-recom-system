@@ -1,4 +1,5 @@
 import mongo.ReadDataBase as rdb
+import mongo.WriteDataBase as wdb
 import numpy as np
 import scipy.sparse
 from scipy.sparse import coo_matrix, csr_matrix
@@ -15,6 +16,7 @@ class UserSongRecom (object):
         self.matrix = []
 
         self.rdb = rdb.ReadColle()
+        self.wdb = wdb.WriteColle()
         # self.sup = supd.SUPandas()
         pass
 
@@ -36,6 +38,8 @@ class UserSongRecom (object):
         }
         n = 0
         while True:
+            if n > page:
+                break
             docs = self.rdb.findDocument(
                 collection_name="like",
                 projection=projections,
@@ -48,21 +52,26 @@ class UserSongRecom (object):
             # print(list(docs['0']))
             for item in docs:
                 # 横轴坐标 x
+                # 对应添加id 之后生成的数据存储的时候用上
                 self.user_name.append(item['name'])
                 self.user_id.append(item['id'])
                 # 第 index_col 列
                 index_col = docs.index(item)
                 # 用于暂存当前用户的song 的id
                 list_tmp = []
+                # 暂存当前用户index
+                col_tmp = []
                 for song in item['songs']:
+                    # 0: 0-202 1:203-818 819-1028
                     # self.song_name.append(song['name'])
                     list_tmp.append(song['id'])
                     # 第index_col 列
-                    user_col.append(index_col)
+                    col_tmp.append(int(index_col))
                 # 纵轴坐标 y
                 self.song_id.extend(list_tmp)
                 # 按顺序存储数据到list中
-                matrix_id = self.song_id
+                matrix_id += list_tmp
+                user_col += col_tmp
                 # 去重
                 self.song_id = list(set(self.song_id))
             # 当每个用户都已经扫描过后
@@ -70,7 +79,6 @@ class UserSongRecom (object):
             # 设置单独的犯法
             song_row = self.scanSongId(
                 song_id=self.song_id, matrix_id=matrix_id)
-            break
         # song_row 第 y 行
         # user_col 第 x 列
         # matrix_id 对应的 数据
@@ -87,10 +95,11 @@ class UserSongRecom (object):
             datas=data, songs=self.user_name, users=self.song_id))
         return dict_recom
 
-    def makeRecomDcition(self, df: supd.SUPandas):
+    def makeRecomDcition(self, df: supd.SUPandas, song_num=50):
         diction = df.makeRecomUserSong(
             topN=df.makeTopNUsers(
-                similar=df.makeSimilarityBetweenUser()))
+                similar=df.makeSimilarityBetweenUser()),
+            song_num=song_num)
         return diction
 
     def scanSongId(self, song_id, matrix_id):
@@ -106,3 +115,26 @@ class UserSongRecom (object):
         col_x = np.array(col)
         data = np.array(id)
         return coo_matrix((data, (row_y, col_x)))
+
+    def saveUserSongRecomAnswer(self, diction: dict):
+        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
+        self.wdb.writeDocument(
+            docs=docs, collection_name="Recom",
+        )
+        print("successfully done")
+        return
+
+    # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
+    # 同时需要有 id,name,RecomSong
+    # 通过id进行数据存在判断，
+    def changeDataFormat(self, diction: dict, list_keys: list):
+        docs = []
+        for key in list_keys:
+            diction_tmp = {
+                "id": self.user_id[self.user_name.index(key)],
+                "name": key,
+                "RecomSong": diction[key],
+                "test": 1
+            }
+            docs.append(diction_tmp)
+        return docs

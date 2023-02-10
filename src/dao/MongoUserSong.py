@@ -119,7 +119,7 @@ class UserSongRecom (object):
     def saveUserSongRecomAnswer(self, diction: dict):
         docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
         self.wdb.writeDocument(
-            docs=docs, collection_name="Recom",
+            docs=docs, collection_name="recom",
         )
         print("successfully done")
         return
@@ -133,8 +133,7 @@ class UserSongRecom (object):
             diction_tmp = {
                 "id": self.user_id[self.user_name.index(key)],
                 "name": key,
-                "RecomSong": diction[key],
-                "test": 1
+                "RecomSong": diction[key]
             }
             docs.append(diction_tmp)
         return docs

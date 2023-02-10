@@ -32,26 +32,56 @@ class WriteColle (object):
         for i in docs:
             # 判断是否存在该数据，不存在，将数据插入 存在就更新数据
             if self.isDocExtists(i, collection_name) != True:
+                print("new coll", i['id'])
                 cols.insert_one(i)
             else:
+                print("update coll", i['id'])
                 # update_one 需要生成两个重要的字典控制更新
-                cols.update_one()
+                self.updateDocument(i, cols)
+
+    # 分id 和 name 一组，其他为另一组，设置dict
+    def updateDocument(self, doc: dict, cols=None, collection_name=None) -> None:
+        list_keys = list(doc)
+        list_condition_key = list_keys[0:2]
+        list_update_key = list_keys[2:]
+        list_query = self.makeQueryNewValues(
+            doc, list_condition=list_condition_key,
+            list_update=list_update_key)
+        cols.update_one(list_query[0], list_query[1])
+        return
 
     # 判断该字段该段是否存在与数据库中，通过id判断是否存在
     # 判断数据在指定的collection是否已经存在，
     # 存在了返回true，
     # 不存在返回false
-    def isDocExtists(self, doc, collection_name):
+    def isDocExtists(self, doc, collection_name) -> bool:
         self.col = self.condb[collection_name]
         length = len(list(self.col.find({'id': doc['id']})))
         if length != 0:
             return True
         else:
             return False
-    # 判断collection 是否存在
 
-    def isCollectionExist(self, collection_name="test"):
+    # 判断collection 是否存在
+    def isCollectionExist(self, collection_name="test") -> bool:
         if collection_name in self.collist:
             return True
         else:
             return False
+
+    # 创建一个dict用于更新的条件
+    def makeQueryNewValues(self, doc: dict, list_condition, list_update) -> list:
+        list_set = []
+        query = {
+            list_condition[0]: doc[list_condition[0]]
+        }
+        list_set.append(query)
+        diction_value = {}
+        for key in list_update:
+            diction_value[key] = doc[key]
+        # 外层套上$set
+        new_value = {
+            "$set": diction_value
+        }
+        list_set.append(new_value)
+        return list_set

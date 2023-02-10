@@ -37,10 +37,11 @@ class WriteColle (object):
             else:
                 print("update coll", i['id'])
                 # update_one 需要生成两个重要的字典控制更新
-                self.updateDocument(i, cols)
+                self.updateDocumentHard(i, cols)
 
+    # 当 查询条件 和更新的条件统一在了同一级上使用下面的更新手段
     # 分id 和 name 一组，其他为另一组，设置dict
-    def updateDocument(self, doc: dict, cols=None, collection_name=None) -> None:
+    def updateDocumentHard(self, doc: dict, cols=None, collection_name=None) -> None:
         list_keys = list(doc)
         list_condition_key = list_keys[0:2]
         list_update_key = list_keys[2:]
@@ -50,10 +51,17 @@ class WriteColle (object):
         cols.update_one(list_query[0], list_query[1])
         return
 
+    # 假如外部已经设置好更新所需要的两个条件，则直接使用一下的更新方法 ,需要设置collection 内容
+    def updateDocumentSimple(self, query, projection, collection_name=None) -> None:
+        cols = self.condb[collection_name]
+        print("update coll", query['id'])
+        cols.update_one(query, projection)
+        return
     # 判断该字段该段是否存在与数据库中，通过id判断是否存在
     # 判断数据在指定的collection是否已经存在，
     # 存在了返回true，
     # 不存在返回false
+
     def isDocExtists(self, doc, collection_name) -> bool:
         self.col = self.condb[collection_name]
         length = len(list(self.col.find({'id': doc['id']})))

@@ -1,12 +1,14 @@
 import mongo.ReadDataBase as rdb
 import mongo.WriteDataBase as wdb
 import numpy as np
+import time as t
 import scipy.sparse
 from scipy.sparse import coo_matrix, csr_matrix
 import panda.SongUser as supd
 # import pandas as pd
 
 
+# 生成推荐歌曲，默认是song_num=50推荐歌曲数量
 class UserSongRecom (object):
     def __init__(self) -> None:
         self.user_name = []
@@ -18,34 +20,54 @@ class UserSongRecom (object):
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
         # self.sup = supd.SUPandas()
-        pass
-
-    # 获取数据库中的信息，包括 用户 name，
-    # 用户下的tags songs {name 和 id}
-    # 处理collection = like
-    # page 失去的页数总计
-    # limit 是取的每页大小
-    def makeRecomAnswer(self, limit=50, page=0):
-        matrix_id = []
-        user_col = []
-        song_row = []
-        projections = {
+        # 设置projection ,知识不需要_id(ObjectId)
+        self.projections = {
             "_id": 0,
             "name": 1,
             "id": 1,
             "songs.id": 1,
             # "songs.name": 1
         }
+        pass
+
+    def makeRecomSongAnswer(self, limit="ALL"):
+        print("[" + t.asctime(t.localtime()) + "]" +
+              "Start" + "make recommend song answer")
+        if limit == "ALL":
+            self.saveUserSongRecomAnswer(self.makeRecomAnswerLoop(limit=-1))
+        else:
+            self.saveUserSongRecomAnswer(self.makeRecomAnswerLoop())
+
+    def saveUserSongRecomAnswer(self, diction: dict):
+        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
+        self.wdb.writeDocument(
+            docs=docs, collection_name="recom",
+        )
+        print("successfully done")
+        return
+
+    # 获取数据库中的信息，包括 用户 name，
+    # 用户下的tags songs {name 和 id}
+    # 处理collection = like
+    # page 失去的页数总计
+    # limit 是取的每页大小
+
+    def makeRecomAnswerLoop(self, limit=50, page=0):
+        matrix_id = []
+        user_col = []
+        song_row = []
+
         n = 0
         while True:
             if n > page:
                 break
             docs = self.rdb.findDocument(
                 collection_name="like",
-                projection=projections,
+                projection=self.projections,
                 limit=limit, page=n)
             # 判断是否为空数据
-
+            if len(docs) <= 0:
+                break
             # 翻页
             n += 1
             # print(len(docs[0]['songs']), len(docs[1]['songs']))
@@ -95,6 +117,7 @@ class UserSongRecom (object):
             datas=data, songs=self.user_name, users=self.song_id))
         return dict_recom
 
+    # song_num=50 默认推荐50 首
     def makeRecomDcition(self, df: supd.SUPandas, song_num=50):
         diction = df.makeRecomUserSong(
             topN=df.makeTopNUsers(
@@ -106,6 +129,7 @@ class UserSongRecom (object):
         # 存储对应位置的数据
         list_tmp_row = []
         for id in matrix_id:
+            # print(song_id.index(id))
             list_tmp_row.append(song_id.index(id))
             matrix_id[matrix_id.index(id)] = 1
         return list_tmp_row
@@ -116,17 +140,10 @@ class UserSongRecom (object):
         data = np.array(id)
         return coo_matrix((data, (row_y, col_x)))
 
-    def saveUserSongRecomAnswer(self, diction: dict):
-        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
-        self.wdb.writeDocument(
-            docs=docs, collection_name="recom",
-        )
-        print("successfully done")
-        return
-
     # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
     # 同时需要有 id,name,RecomSong
     # 通过id进行数据存在判断，
+
     def changeDataFormat(self, diction: dict, list_keys: list):
         docs = []
         for key in list_keys:

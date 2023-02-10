@@ -13,7 +13,10 @@ class ReadColle (object):
     def findDocument(self, collection_name, query={}, projection={}, limit=1, page=0):
         # print(limit, page)
         cols = self.condb[collection_name]
-        docs = cols.find(query, projection).limit(limit).skip(page*limit)
+        if limit == -1:
+            docs = cols.find(query, projection)
+        else:
+            docs = cols.find(query, projection).limit(limit).skip(page*limit)
         return list(docs)
 
     # 随机查找数据，设定一些限制

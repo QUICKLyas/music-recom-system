@@ -37,9 +37,33 @@ class TagofSongUserRecom():
         }
         pass
 
+    # 生成我们需要内容：关于tag相似度获取的用户集
+    def makeRecomUsersSet(self, limit="ALL"):
+        print("[" + t.asctime(t.localtime()) + "]" +
+              "Start" + "make recommend song answer")
+        if limit == "ALL":
+            self.saveDataSetRecomAnswer()
+
+    # 首先应该获取用户的信息然后生成xy轴和矩阵
+    def makeRecomAnswerForUser(self, limit=50, page=0):
+        matrix_id = []
+        user_col = []
+        tag_row = []
+        # 随机获取一定数量的用户来计算tag 相似度
+
+        docs = self.rdb.findDocument(
+            collection_name="like",
+            query=self.query,
+            projection=self.projections,
+            limit=50)
+
+        return
+
     # 生成最后的tag表 开始的函数方法，
     # 如果我们是app调用程序
     # 从此处启动相关程序
+    # 统计一个用户自己tag的占比
+
     def makeTagRateAnswer(self):
         print("[" + t.asctime(t.localtime()) + "]" +
               "Start" + "make tag's rate answer")
@@ -50,12 +74,7 @@ class TagofSongUserRecom():
             # 如果 doc 的长度为 非 0 运行下面的程序 步骤
             diction = self.makeTagUserRateDataPandas()
             # save 操作
-            self.wdb.updateDocumentSimple(
-                query={
-                    'id': self.id
-                }, projection={
-                    '$set': {"tags_rate": diction}
-                }, collection_name="recom")
+            self.saveDataSetRecomAnswer(diction)
             self.page += 1
         print("successfully done")
         return
@@ -103,6 +122,7 @@ class TagofSongUserRecom():
         for i in data:
             data[data.index(i)] = [tag_col[data.index(i)], i]
         # print(data)
+        # 生成pandas
         taguser = tu.TUPandas(datas=data, tags=tag_col,
                               users=["name", "count"])
         # print(taguser.df)
@@ -111,3 +131,12 @@ class TagofSongUserRecom():
         list_diction = taguser.df.to_dict(orient='records')
         # print("list_diction:", list_diction)
         return list_diction
+
+    # 保存操作
+    def saveDataSetRecomAnswer(self, diction: dict):
+        self.wdb.updateDocumentSimple(
+            query={
+                'id': self.id
+            }, projection={
+                '$set': {"tags_rate": diction}
+            }, collection_name="recom")

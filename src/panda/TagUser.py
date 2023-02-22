@@ -42,11 +42,12 @@ class TUPandas (object):
         for i in similar.index:
             df_topN = similar.loc[i].drop([i])
             df_topN_sorted = df_topN.dort_values(ascending=False)
+            print(df_topN_sorted)
             top5 = []
             match sign:
                 case 0:  # 0 时默认获取前五个数据
                     top5 = list(df_topN_sorted.index[:5])
-                case 1:  # 1 时随机获取五个用户
+                case 1:  # 1 获取几个相似度大于阈值的用户
                     top5 = []
             topN_users[i] = top5
         return topN_users

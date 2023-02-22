@@ -41,15 +41,14 @@ class UserSongRecom (object):
             self.saveUserSongRecomAnswer(self.makeRecomAnswerLoop(limit=-1))
         else:
             self.saveUserSongRecomAnswer(self.makeRecomAnswerLoop())
-    # 保存操作
+        print("successfully done")
 
+    # 保存操作
     def saveUserSongRecomAnswer(self, diction: dict):
         docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
         self.wdb.writeDocument(
-            docs=docs, collection_name="recom",
-        )
-        print("successfully done")
-        return
+            docs=docs, collection_name="recom")
+        return docs  # 用户输出方法体中变量
 
     # 获取数据库中的信息，包括 用户 name，
     # 用户下的tags songs {name 和 id}

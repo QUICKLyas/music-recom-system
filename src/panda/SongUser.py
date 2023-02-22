@@ -26,7 +26,7 @@ class SUPandas():
         return user_similar
 
     # make 歌曲之间的两两相似度
-    def makeSimilarityBetweenUser(self):
+    def makeSimilarityBetweenItem(self):
         item_similar = 1 - \
             pairwise_distances(self.df.T.values, metric="jaccard")
         item_similar = pd.DataFrame(
@@ -44,6 +44,7 @@ class SUPandas():
             topN_users[i] = top5
         return topN_users
 
+    # 通过这些用户获取相似的歌曲，并排除某个用户的已经有的歌曲
     def makeRecomUserSong(self, topN: dict, song_num: int):
         results = {}
         for user, simimlar_users in topN.items():

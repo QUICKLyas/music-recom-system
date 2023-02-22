@@ -3,11 +3,12 @@ import mongo.WriteDataBase as wdb
 import numpy as np
 import time as t
 import scipy.sparse
+# 生成二维矩阵的方法
 from scipy.sparse import coo_matrix, csr_matrix
 import panda.SongUser as supd
 # import pandas as pd
 
-
+# ps 此段程序是对整体用户集进行一次统一的推荐
 # 生成推荐歌曲，默认是song_num=50推荐歌曲数量
 class UserSongRecom (object):
     def __init__(self) -> None:

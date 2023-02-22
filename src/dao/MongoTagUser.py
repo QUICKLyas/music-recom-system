@@ -37,12 +37,17 @@ class TagofSongUserRecom():
         }
         pass
 
+    # 生成最后的tag表 开始的函数方法，
+    # 如果我们是app调用程序
+    # 从此处启动相关程序
     def makeTagRateAnswer(self):
         print("[" + t.asctime(t.localtime()) + "]" +
               "Start" + "make tag's rate answer")
         while True:
+            # 如果 doc 的长度为 0 设置推出循环
             if self.doc_length == 0:
                 break
+            # 如果 doc 的长度为 非 0 运行下面的程序 步骤
             diction = self.makeTagUserRateDataPandas()
             # save 操作
             self.wdb.updateDocumentSimple(
@@ -71,7 +76,7 @@ class TagofSongUserRecom():
     # 本class内部调用这个方法
     def getTagFromMongo(self, user_id, limit=1, n=0) -> None:
         self.query["user_id"] = user_id
-        # 获取
+        # 获取 数据 重点
         doc = self.rdb.findDocument(
             collection_name="like",
             query=self.query,
@@ -82,6 +87,7 @@ class TagofSongUserRecom():
             return
         doc = doc[0]
         list_tags = doc['tags']
+        # 设置判断数据 非重点 方便处理数据
         for item in list_tags:
             self.tags[item] = 0
         self.user_name = doc['name']
@@ -89,6 +95,7 @@ class TagofSongUserRecom():
         self.songs = doc['songs']
         return
 
+    # 统计 tag 的 关系
     def makeTagCountPandas(self, diction: dict) -> list:
         # print(len(self.songs))
         tag_col = list(diction)

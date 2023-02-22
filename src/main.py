@@ -18,5 +18,6 @@ m.makeRecomSongAnswer()
 # diction = m.makeRecomAnswer()
 # print(diction)
 # m.saveUserSongRecomAnswer(diction=diction)
-t = tu.TagofSongUserRecom()
-t.makeTagRateAnswer()
+# t = tu.TagofSongUserRecom()
+# t.makeTagRateAnswer()
+# 判断 用户 之间的相似度，通过听歌的tag 来判断

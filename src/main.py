@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import controller.UserTagC as userTagC
-import dao.MongoUserSong as mus
+import dao.MongoUsersSong as mus
 import dao.MongoTagUser as tu
 # users = ["A", "B", "C", "D"]
 

@@ -106,6 +106,7 @@ class TagofSongUserRecom():
         taguser = tu.TUPandas(datas=data, tags=tag_col,
                               users=["name", "count"])
         # print(taguser.df)
+        # 形成关于用户的收藏的歌曲中的占比
         taguser.computeRateofTag()
         list_diction = taguser.df.to_dict(orient='records')
         # print("list_diction:", list_diction)

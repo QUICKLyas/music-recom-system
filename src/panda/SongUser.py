@@ -14,15 +14,15 @@ class SUPandas():
         pass
 
     # 获得杰卡德系数
-    def getTaccardScore(self, df, user_name, other_name):
+    def getJaccardScore(self, df, user_name, other_name):
         return jaccard_score(df[user_name], df[user_name])
 
     # make 用户之间的两两相似度
-    def makeSimilarityBetweenUser(self):
-        user_similar = 1 - \
+    def makeSimilarityBetweenUserSong(self):
+        user_similar_song = 1 - \
             pairwise_distances(self.df.values, metric="jaccard")
         user_similar = pd.DataFrame(
-            user_similar, columns=self.users, indx=self.users)
+            user_similar_song, columns=self.users, index=self.users)
         return user_similar
 
     # make 歌曲之间的两两相似度
@@ -55,6 +55,5 @@ class SUPandas():
                     set(self.df.loc[:, similar_user].replace(0, np.nan).dropna().index))
             result -= set(self.df.loc[:, user].replace(0,
                           np.nan).dropna().index)
-
             results[user] = list(result)[:song_num]
         return results

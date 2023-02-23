@@ -99,9 +99,9 @@ class UserSongRecom (object):
                 user_col += col_tmp
                 # 去重
                 self.song_id = list(set(self.song_id))
-            # 当每个用户都已经扫描过后
+            # 当每个用户都已经扫描过后  
             # 开始通过matrix_id 和 self.song_id确认 song_row
-            # 设置单独的犯法
+            # 设置单独的方法
             song_row = self.scanSongId(
                 song_id=self.song_id, matrix_id=matrix_id)
         # song_row 第 y 行

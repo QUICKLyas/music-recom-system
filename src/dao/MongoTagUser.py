@@ -20,6 +20,8 @@ class TagofSongUserRecom():
         self.user_id = user_id
         self.user_name = None
         # 用于更新的时候使用的查找条件
+        self.users_name = []
+        self.users_id = []
         self.id = None
         self.page = 0
         self.doc_length = -1
@@ -28,8 +30,6 @@ class TagofSongUserRecom():
         self.matric_rate_data = None
         self.songs = []
         self.tags = []
-        self.users_name = []
-        self.users_id = []
         # mongo
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
@@ -65,7 +65,7 @@ class TagofSongUserRecom():
         print("[" + t.asctime(t.localtime()) + "]" +
               "Start " + "make similarity users answer")
         self.saveDataSetRecomAnswer(
-            self.makeRecomAnswerForUser(), id=self.user_id)
+            self.makeRecomAnswerForUser())
 
     # 首先应该获取用户的信息然后生成xy轴和矩阵
     def makeRecomAnswerForUser(self, limit=50) -> dict:
@@ -88,107 +88,23 @@ class TagofSongUserRecom():
         # 通过docs 生成一组 matric_rate_data数据
         # 查找数据songs 便于 统计tags 出现的次数
         # 提取docs 中用户的id
-        list_name = self.getUserIdFromDocs(docs=docs, key='name')
-        list_id = self.getUserIdFromDocs(docs=docs, key='id')
+        list_name = self.getItemFromDocs(docs=docs, key='name')
+        list_id = self.getItemFromDocs(docs=docs, key='id')
         docs_song = self.getSongsforTagfromMongo(list_id)
         # count_tag
         dict_tags = self.makeMatricTagCountData(docs=docs_song)
         # 根据以上docs 来生成 xy轴，矩阵
-        data = self.makeXYMatric(docs=docs)
         # 内容
         # matrix_data = data
         # pandas_x = self.x
         # pandas_y = self.y
+        data = self.makeXYMatric(docs=docs)
         # 生成pandas 表格
         tudf = tupd.TUPandas(datas=data, items=self.y, users=self.x)
         # 开始将tudf 中的数据根据上面的dict_tags中的数据进行替换
         tudf = self.changeDataCountTagTUDF(list_name, dict_tags, tudf)
         # print(tudf.df)
         return self.makeRecomDcition(df_object=tudf)
-
-    # 生成最后的tag表 开始的函数方法，
-    # 如果我们是app调用程序
-    # 从此处启动相关程序
-    # 统计一个用户自己tag的占比
-    def makeTagRateAnswer(self):
-        print("[" + t.asctime(t.localtime()) + "]" +
-              "Start" + "make tag's rate answer")
-        # while True:
-        #     # 如果 doc 的长度为 0 设置推出循环
-        #     if self.doc_length == 0:
-        #         break
-        #     # 如果 doc 的长度为 非 0 运行下面的程序 步骤
-        #     diction = self.makeTagUserRateDataPandas()
-        #     # save 操作
-        #     self.saveDataSetRecomAnswer(diction)
-        #     self.page += 1
-        print("successfully done")
-        return
-
-    # 内部通过这里调用方法
-    def makeTagUserRateDataPandas(self, user_id=None, user_tags=None) -> list:
-        # 当前方法是开始方法
-        if user_id == None:
-            self.getTagFromMongo(self.user_id)
-        else:
-            self.getTagFromMongo(user_id)
-        # print(self.tags)
-        for item in self.songs:
-            # 记录tags 出现的次数
-            tags = item['union'][0]['tags']
-            for tag in tags:
-                self.tags[tag] += 1
-        # 统计最后的数据
-        return self.makeTagCountPandas(self.tags)
-
-    # 获得需要的数据重点
-    # 本class内部调用这个方法
-    def getTagFromMongo(self, user_id, limit=1, n=0) -> None:
-        self.query["user_id"] = user_id
-        # 获取 数据 重点
-        doc = self.rdb.findDocument(
-            collection_name="like",
-            query=self.query,
-            projection=self.projections,
-            limit=1, page=self.page)
-        if len(doc) < 1:
-            self.doc_length = 0
-            return
-        doc = doc[0]
-        list_tags = doc['tags']
-        # 设置判断数据 非重点 方便处理数据
-        for item in list_tags:
-            self.tags[item] = 0
-        self.user_name = doc['name']
-        self.id = doc['id']
-        self.songs = doc['songs']
-        return
-
-    # 统计 tag 的 关系
-    def makeTagCountPandas(self, diction: dict) -> list:
-        # print(len(self.songs))
-        tag_col = list(diction)
-        data = list(diction.values())
-        for i in data:
-            data[data.index(i)] = [tag_col[data.index(i)], i]
-        # print(data)
-        # 生成pandas
-        taguser = tupd.TUPandas(datas=data, tags=tag_col,
-                                users=["name", "count"])
-        # print(taguser.df)
-        # 形成关于用户的收藏的歌曲中的占比
-        taguser.computeRateofTag()  # 具体计算方法在pandas中进行
-        list_diction = taguser.df.to_dict(orient='records')
-        # print("list_diction:", list_diction)
-        return list_diction
-
-    # 保存操作
-    def saveDataSetRecomAnswer(self, diction: dict, id):
-        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
-        # print(docs)
-        self.wdb.writeDocument(
-            docs=docs, collection_name="recom")
-        return docs
 
     # 判断 docs中是否存在 doc 返回doc 和 docs 合并后的list
     def isDocinDocs(self, doc, docs) -> list:
@@ -203,7 +119,7 @@ class TagofSongUserRecom():
         return doc
 
     # 提取docs 中用户的id
-    def getUserIdFromDocs(self, docs, key) -> list:
+    def getItemFromDocs(self, docs, key) -> list:
         list_tmp = []
         for item in docs:
             list_tmp.append(item[key])
@@ -301,6 +217,7 @@ class TagofSongUserRecom():
             list_tmp_y.append(self.y.index(item))
             # 配置其中每个数据
             matric_y[matric_y.index(item)] = 1
+        # 考虑使用rate 替换其中的 1 ，但是实际已经使用计数来替换 1
         if matric_rate_data == None:
             pass
         else:
@@ -320,7 +237,94 @@ class TagofSongUserRecom():
             diction_tmp = {
                 "id": self.user_id,
                 "name": key,
-                "RecUsers": diction[key]
+                "RecomUsers": diction[key]
             }
             docs.append(diction_tmp)
         return docs
+
+    # 保存操作
+    def saveDataSetRecomAnswer(self, diction: dict):
+        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
+        # print(docs)
+        self.wdb.writeDocument(
+            docs=docs, collection_name="recom")
+        return docs
+
+    # 生成最后的tag表 开始的函数方法，
+    # 如果我们是app调用程序
+    # 从此处启动相关程序
+    # 统计一个用户自己tag的占比
+    # def makeTagRateAnswer(self):
+    #     print("[" + t.asctime(t.localtime()) + "]" +
+    #           "Start" + "make tag's rate answer")
+    #     self.tags = dict(self.tags)
+    #     while True:
+    #         # 如果 doc 的长度为 0 设置推出循环
+    #         if self.doc_length == 0:
+    #             break
+    #         # 如果 doc 的长度为 非 0 运行下面的程序 步骤
+    #         diction = self.makeTagUserRateDataPandas()
+    #         print(diction)
+    #         # save 操作
+    #         # self.saveDataSetRecomAnswer(diction)
+    #         self.page += 1
+    #     print("successfully done")
+    #     return
+
+    # 内部通过这里调用方法
+    # def makeTagUserRateDataPandas(self, user_id=None, user_tags=None) -> list:
+    #     # 当前方法是开始方法
+    #     if user_id == None:
+    #         self.getTagFromMongo(self.user_id)
+    #     else:
+    #         self.getTagFromMongo(user_id)
+    #     # print(self.tags)
+    #     for item in self.songs:
+    #         # 记录tags 出现的次数
+    #         tags = item['union'][0]['tags']
+    #         for tag in tags:
+    #             self.tags[tag] += 1
+    #     # 统计最后的数据
+    #     return self.makeTagCountPandas(self.tags)
+
+    # 获得需要的数据重点
+    # 本class内部调用这个方法
+    # def getTagFromMongo(self, user_id, limit=1, n=0) -> None:
+    #     self.query["user_id"] = user_id
+    #     # 获取 数据 重点
+    #     doc = self.rdb.findDocument(
+    #         collection_name="like",
+    #         query=self.query,
+    #         projection=self.projections,
+    #         limit=1, page=self.page)
+    #     if len(doc) < 1:
+    #         self.doc_length = 0
+    #         return
+    #     doc = doc[0]
+    #     list_tags = doc['tags']
+    #     # 设置判断数据 非重点 方便处理数据
+    #     for item in list_tags:
+    #         print(item)
+    #         self.tags[item] = 0
+    #     self.user_name = doc['name']
+    #     self.id = doc['id']
+    #     self.songs = doc['songs']
+    #     return
+
+    # # 统计 tag 的 关系
+    # def makeTagCountPandas(self, diction: dict) -> list:
+    #     # print(len(self.songs))
+    #     tag_col = list(diction)
+    #     data = list(diction.values())
+    #     for i in data:
+    #         data[data.index(i)] = [tag_col[data.index(i)], i]
+    #     # print(data)
+    #     # 生成pandas
+    #     taguser = tupd.TUPandas(datas=data, tags=tag_col,
+    #                             users=["name", "count"])
+    #     # print(taguser.df)
+    #     # 形成关于用户的收藏的歌曲中的占比
+    #     taguser.computeRateofTag()  # 具体计算方法在pandas中进行
+    #     list_diction = taguser.df.to_dict(orient='records')
+    #     # print("list_diction:", list_diction)
+    #     return list_diction

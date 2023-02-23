@@ -9,7 +9,9 @@ class ReadColle (object):
         self.collist = self.condb.list_collection_names()
         pass
 
-    # 查找数据，设定一些限制
+    # 查找数据，设定一些限制 limit = -1 时 是默认 查询所有用户
+    # ps  考虑数据会变大，所以应该设定每次随机获取一定数量的用户，进行推荐
+    # 这个时候应该使用 aggregateDocument(self, collection_name, querys=[])方法
     def findDocument(self, collection_name, query={}, projection={}, limit=1, page=0):
         # print(limit, page)
         cols = self.condb[collection_name]

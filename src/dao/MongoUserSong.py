@@ -23,7 +23,7 @@ class UserSongRecom (object):
 
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
-        self.mtu = mtu.TagofSongUserRecom()
+        # self.mtu = mtu.TagofSongUserRecom()
         # self.sup = supd.SUPandas()
         # 设置projection ,知识不需要_id(ObjectId)
         self.projections = {

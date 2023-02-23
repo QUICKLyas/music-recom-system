@@ -5,12 +5,12 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 
 class SUPandas():
-    def __init__(self, datas, songs, users) -> None:
+    def __init__(self, datas, items, users) -> None:
         self.data = datas
-        self.items = songs
+        self.items = items
         self.users = users
         self.df = pd.DataFrame(
-            self.data, columns=self.items, index=self.users)
+            self.data, columns=self.users, index=self.items)
         pass
 
     # 获得杰卡德系数
@@ -50,6 +50,7 @@ class SUPandas():
         for user, simimlar_users in topN.items():
             result = set()
             for similar_user in simimlar_users:
+                print(similar_user)
                 # rs_result.union(set(df.loc[sim_user].replace(0,np.nan).dropna().index))
                 result = result.union(
                     set(self.df.loc[:, similar_user].replace(0, np.nan).dropna().index))

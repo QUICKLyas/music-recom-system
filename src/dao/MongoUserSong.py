@@ -139,9 +139,9 @@ class UserSongRecom (object):
 
     # song_num=50 默认推荐50 首
     def makeRecomDcition(self, df: supd.SUPandas, song_num=50):
-        diction = df.makeRecomUserSong(
+        diction = df.makeRecomUserBySong(
             topN=df.makeTopNUsers(
-                similar=df.makeSimilarityBetweenUserSong()),
+                similar=df.makeSimilarityBetweenUser()),
             song_num=song_num)
         return diction
 

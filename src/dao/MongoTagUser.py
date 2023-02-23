@@ -2,7 +2,6 @@ import mongo.ReadDataBase as rdb
 import mongo.WriteDataBase as wdb
 import panda.TagUser as tupd
 import time as t
-import pandas as pd
 import numpy as np
 
 from scipy.sparse import coo_matrix, csr_matrix
@@ -30,7 +29,7 @@ class TagofSongUserRecom():
         self.songs = []
         self.tags = []
         self.users_name = []
-        # self.users_id = []
+        self.users_id = []
         # mongo
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
@@ -90,7 +89,8 @@ class TagofSongUserRecom():
         # 通过docs 生成一组 matric_rate_data数据
         # 查找数据songs 便于 统计tags 出现的次数
         # 提取docs 中用户的id
-        list_id = self.getUserIdFromDocs(docs=docs)
+        list_name = self.getUserIdFromDocs(docs=docs, key='name')
+        list_id = self.getUserIdFromDocs(docs=docs, key='id')
         docs_song = self.getSongsforTagfromMongo(list_id)
         # count_tag
         dict_tags = self.makeMatricTagCountData(docs=docs_song)
@@ -103,9 +103,10 @@ class TagofSongUserRecom():
         # 生成pandas 表格
         tudf = tupd.TUPandas(datas=data, items=self.y, users=self.x)
         # 开始将tudf 中的数据根据上面的dict_tags中的数据进行替换
-        tudf.df = self.changeDataCounTagTUDF(list_id, dict_tags, tudf.df)
-        # 然后使用pearson 获取 其中的相关性
-        tudf
+        tudf = self.changeDataCountTagTUDF(list_name, dict_tags, tudf)
+        # print(tudf.df)
+        # 然后使用pearson 获取其中的相关性
+        self.makeRecomDcition(df_object=tudf)
         return
 
     # 生成最后的tag表 开始的函数方法，
@@ -206,16 +207,16 @@ class TagofSongUserRecom():
         return doc
 
     # 提取docs 中用户的id
-    def getUserIdFromDocs(self, docs) -> list:
+    def getUserIdFromDocs(self, docs, key) -> list:
         list_tmp = []
         for item in docs:
-            list_tmp.append(item['id'])
+            list_tmp.append(item[key])
         return list_tmp
 
     # 获取用户和他们收藏的歌曲
     def getSongsforTagfromMongo(self, array) -> list:
         query = {'id': {"$in": array}}
-        projection = {'_id': 0, 'id': 1, 'songs.id': 1, 'songs.union': 1}
+        projection = {'_id': 0, 'name': 1, 'songs.id': 1, 'songs.union': 1}
         docs = self.rdb.findDocument(
             collection_name="like", query=query, projection=projection, limit=-1)
         return docs
@@ -233,18 +234,18 @@ class TagofSongUserRecom():
                 # print(Counter(list_tmp))
                 # break
             arr = Counter(list_tmp)
-            diction[item['id']] = arr
+            diction[item['name']] = arr
         return diction
-    # 根据以上docs 来生成 xy轴，矩阵
 
+    # 根据以上docs 来生成 xy轴，矩阵
     def makeXYMatric(self, docs) -> list[list]:
         # 存储(用户-标签)元素的坐标
         matric_data = []  # 矩阵中值
         matric_y = []  # 矩阵 y 值
         matric_x = []  # 矩阵 x 值
         for item in docs:
-            self.users_name.append(item['name'])
-            self.x.append(item['id'])
+            self.x.append(item['name'])
+            self.users_id.append(item['id'])
             # 第index_item列,表示当前操作的item在docs中的位置
             index_item = docs.index(item)
             # print(index_item)
@@ -268,18 +269,28 @@ class TagofSongUserRecom():
         data = list(map(list, data.toarray()))
         return data
 
+    # 利用pandas和pearson形成相关性最高的几个用数据，默认推荐5个人，如果有推荐阈值
+    def makeRecomDcition(self, df_object: tupd.TUPandas):
+        # df_object.makeSimilarityWithPearson()
+        # diction = df_object.makeRecomUserByTag(
+        #     topN=df_object.makeTopNUsers(
+        #         similar=df_object.df, sign=1)
+        # )
+        # 变量
+        df_object.makeTopNUsers(similar=df_object.makeSimilarityWithPearson(),
+                                sign=1)
+        return
     # 替换pandas中的数值为次数
-    def changeDataCounTagTUDF(self, list_x: list, docs: dict, df: pd.DataFrame) -> pd.DataFrame:
+
+    def changeDataCountTagTUDF(self, list_x: list, docs: dict, df_object: tupd.TUPandas) -> tupd.TUPandas:
         for item in list_x:
             # 生成y轴坐标
             list_tmp_tag = list(docs[item].keys())
             # print(docs[item])
             for tag in list_tmp_tag:
-                # 先行后列
-                df.loc[tag, item] = docs[item][tag]
-                # break
-            # break
-        df_result = df
+                # TUPandas内的pandas先行后列
+                df_object.df.loc[tag, item] = docs[item][tag]
+        df_result = df_object
         return df_result
 
     def scanItemAsMatricY(self, matric_y, matric_rate_data=None):

@@ -20,8 +20,8 @@ class TUPandas (object):
     def getJaccardScore(self, df, user_name):
         return jaccard_score(df[user_name])
 
-    # make 用户之间的亮亮相似度
-    def makeSimilarityBetweenUserTag(self):
+    # make 用户之间的相似度
+    def makeSimilarityBetweenUser(self):
         user_similar_tag = 1 - \
             pairwise_distances(self.df.values, metric="jaccard")
         user_similar = pd.DataFrame(
@@ -41,20 +41,36 @@ class TUPandas (object):
         topN_users = {}
         for i in similar.index:
             df_topN = similar.loc[i].drop([i])
-            df_topN_sorted = df_topN.dort_values(ascending=False)
-            print(df_topN_sorted)
-            top5 = []
+            df_topN_sorted = df_topN.sort_values(ascending=False)
+            # 目标用户是放在最开始的位置
+            # print(df_topN_sorted)
+            topN = []
             match sign:
-                case 0:  # 0 时默认获取前五个数据
-                    top5 = list(df_topN_sorted.index[:5])
-                case 1:  # 1 获取几个相似度大于阈值的用户
-                    top5 = []
-            topN_users[i] = top5
+                case 0:  # 0 时默认获取前N=5个数据
+                    topN = list(df_topN_sorted.index[:5])
+                case 1:  # 1 获取几个相似度大于阈值0.95的用户
+                    topN = self.getUserWithPearson(
+                        df_topN_sorted)
+                    print(topN)
+                    break
+            topN_users[i] = topN
         return topN_users
-    # 计算某个tag在所有用户收藏的占比
 
+    # 获取df中大于阈值（默认0.95）的数据
+    def getUserWithPearson(self, df_top, threshold=0.95) -> list:
+        print(df_top[(df_top.loc[:, 'RuRuUIH'] <= threshold)])
+        # data =  data.drop(index = data[(data.ZH_Term_len == 0)].index.tolist())
+        # data = df_top.drop(
+        # index=df_top[(df_top.loc[:, 'RuRuUIH'] <= threshold)].index.tolist())
+        # print(data)
+        topPearson_95 = []
+        # topPearson_95 = df[df.loc[1] >= threshold]
+        return topPearson_95
+
+    # 计算某个tag在所有用户收藏的占比
     # 通过这些用户获取相似的歌曲，并排除某个用户已经有的歌曲
-    def makeRecomUserSong(self, topN: dict, song_num: int) -> dict:
+
+    def makeRecomUserByTag(self, topN: dict, song_num: int) -> dict:
         results = {}
         for user, similar_users in topN.items():
             result = set()
@@ -68,12 +84,13 @@ class TUPandas (object):
 
     # 使用Pearson相关系数
     def makeSimilarityWithPearson(self) -> pd.DataFrame:
-        print(self.df)
         user_similar = self.df.corr()
-        print(user_similar.round(4))
-        return user_similar
+        # print(user_similar.round(2))
+        # print(user_similar)
+        return user_similar.round(2)
 
     # 计算tag占比
+
     def computeRateofTag(self):
         data = self.df
         # print(self.df[self.df.columns[0]].sum())

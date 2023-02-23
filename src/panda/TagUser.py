@@ -66,6 +66,13 @@ class TUPandas (object):
             results[user] = list(result)[:song_num]
         return results
 
+    # 使用Pearson相关系数
+    def makeSimilarityWithPearson(self) -> pd.DataFrame:
+        print(self.df)
+        user_similar = self.df.corr()
+        print(user_similar.round(4))
+        return user_similar
+
     # 计算tag占比
     def computeRateofTag(self):
         data = self.df

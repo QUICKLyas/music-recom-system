@@ -99,7 +99,7 @@ class UserSongRecom (object):
                 user_col += col_tmp
                 # 去重
                 self.song_id = list(set(self.song_id))
-            # 当每个用户都已经扫描过后  
+            # 当每个用户都已经扫描过后
             # 开始通过matrix_id 和 self.song_id确认 song_row
             # 设置单独的方法
             song_row = self.scanSongId(
@@ -141,6 +141,7 @@ class UserSongRecom (object):
         row_y = np.array(row)
         col_x = np.array(col)
         data = np.array(id)
+        # 第 y 行 第 x 列
         return coo_matrix((data, (row_y, col_x)))
 
     # 返回的结果是一个diction，所以需要重组，生成保存所需要的list

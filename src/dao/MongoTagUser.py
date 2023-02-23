@@ -2,6 +2,10 @@ import mongo.ReadDataBase as rdb
 import mongo.WriteDataBase as wdb
 import panda.TagUser as tu
 import time as t
+import numpy as np
+
+from scipy.sparse import coo_matrix, csr_matrix
+from collections import Counter
 
 
 # 设计 对用户听歌的习惯进行一个计算，统计出用户的听歌偏好偏好
@@ -21,7 +25,9 @@ class TagofSongUserRecom():
         self.doc_length = -1
         self.x = []  # x 轴坐标
         self.y = []  # y 轴坐标
-        # self.songs = []
+        self.matric_rate_data = None
+        self.songs = []
+        self.tags = []
         self.users_name = []
         self.users_id = []
         # mongo
@@ -49,6 +55,7 @@ class TagofSongUserRecom():
             "name": "$name",
             "id": "$id",
             "tags": "$tags"
+            # "songs": "$songs"
         }
         pass
 
@@ -63,7 +70,6 @@ class TagofSongUserRecom():
 
     # 首先应该获取用户的信息然后生成xy轴和矩阵
     def makeRecomAnswerForUser(self, limit=50, page=0):
-
         # 获取单个用户信息
         doc = self.rdb.findDocument(
             collection_name="like", query=self.query, projection=self.projections)
@@ -80,11 +86,20 @@ class TagofSongUserRecom():
         # print(len(docs))
         # 判断 docs中是否存在 doc 并合并
         docs = self.isDocinDocs(doc=doc, docs=docs)
+        # 通过docs 生成一组 matric_rate_data数据
+        # 查找数据songs 便于 统计tags 出现的次数
+        # 提取docs 中用户的id
+        list_id = self.getUserIdFromDocs(docs=docs)
+        docs_song = self.getSongsforTagfromMongo(list_id)
+        # count_tag
+        dict_tags = self.makeMatricTagCountData(docs=docs_song)
         # 根据以上docs 来生成 xy轴，矩阵
-        diction = self.makeXYMatric(docs=docs)
-        # matrix_id = diction['matric']
-        # user_col = diction['x']
-        # tag_row = diction['y']
+        data = self.makeXYMatric(docs=docs)
+        # 内容
+        # matrix_data = data
+        # pandas_x = self.x
+        # pandas_y = self.y
+        # 生成pandas 表格
         return
 
     # 生成最后的tag表 开始的函数方法，
@@ -106,9 +121,13 @@ class TagofSongUserRecom():
         print("successfully done")
         return
 
-    def makeTagUserRateDataPandas(self) -> list:
+    # 内部通过这里调用方法
+    def makeTagUserRateDataPandas(self, user_id=None, user_tags=None) -> list:
         # 当前方法是开始方法
-        self.getTagFromMongo(self.user_id)
+        if user_id == None:
+            self.getTagFromMongo(self.user_id)
+        else:
+            self.getTagFromMongo(user_id)
         # print(self.tags)
         for item in self.songs:
             # 记录tags 出现的次数
@@ -154,7 +173,7 @@ class TagofSongUserRecom():
                               users=["name", "count"])
         # print(taguser.df)
         # 形成关于用户的收藏的歌曲中的占比
-        taguser.computeRateofTag()
+        taguser.computeRateofTag()  # 具体计算方法在pandas中进行
         list_diction = taguser.df.to_dict(orient='records')
         # print("list_diction:", list_diction)
         return list_diction
@@ -180,10 +199,41 @@ class TagofSongUserRecom():
         doc.extend(docs)
         return doc
 
-    # 根据以上docs 来生成 xy轴，矩阵
-    def makeXYMatric(self, docs) -> dict:
+    # 提取docs 中用户的id
+    def getUserIdFromDocs(self, docs) -> list:
+        list_tmp = []
+        for item in docs:
+            list_tmp.append(item['id'])
+        return list_tmp
+
+    # 获取用户和他们收藏的歌曲
+    def getSongsforTagfromMongo(self, array) -> list:
+        query = {'id': {"$in": array}}
+        projection = {'_id': 0, 'id': 1, 'songs.id': 1, 'songs.union': 1}
+        docs = self.rdb.findDocument(
+            collection_name="like", query=query, projection=projection, limit=-1)
+        return docs
+
+    # 通过者个docs 生成一组 matric_rate_data数据
+    def makeMatricTagCountData(self, docs):
         diction = {}
+        for item in docs:
+            # print(Counter(item['tags']))
+            # print(item)
+            list_tmp = []
+            for song in item['songs']:
+                # 该歌曲的tags
+                list_tmp.extend(song['union'][0]['tags'])
+                # print(Counter(list_tmp))
+                # break
+            arr = Counter(list_tmp)
+            diction[item['id']] = arr
+        return diction
+    # 根据以上docs 来生成 xy轴，矩阵
+
+    def makeXYMatric(self, docs) -> list[list]:
         # 存储(用户-标签)元素的坐标
+        matric_data = []  # 矩阵中值
         matric_y = []  # 矩阵 y 值
         matric_x = []  # 矩阵 x 值
         for item in docs:
@@ -196,22 +246,44 @@ class TagofSongUserRecom():
             # 循环每个item内的tags形成行标
             list_tmp = []  # 所有用户拥有的tags（没有去重的情况下）
             col_tmp = []  # 暂存当前用户所在位置，用于之后形成的matric 时作为x值
+            list_rate_tmp = []
             for tag in item['tags']:
                 list_tmp.append(tag)
+                # 对list_tmp中的数据进行概率统计，然后存储到新的数据list中，用于Pearson相关系数的计算
+                list_tmp_rate = self.makeTagUserRateDataPandas(item['id'])
+                print(list_tmp_rate)
                 col_tmp.append(int(index_item))
             # 纵轴坐标 y
             self.y.extend(list_tmp)  # （没有去重）
             self.y = list(set(self.y))  # 每次添加新的list_tmp后都进行一次去重，到最后就是y轴坐标
-            matric_y += list_tmp  # 将存储的标签转换出每个tag 的 y 值
+            matric_data += list_tmp  # 将存储的标签转换出每个tag 的 y 值
             matric_x += col_tmp
         # 扫描以上的matric_y 和 self.y(去重后),最后生成y值
-        matric_y = self.scanItemAsMatricY(matric_y=matric_y)
-        print(matric_y, len(matric_y), len(matric_x))
+        matric_y = self.scanItemAsMatricY(matric_y=matric_data)
+        # 生成相应的矩阵数据集
+        data = self.makeMatric(x=matric_x, y=matric_y,
+                               matric_data=matric_data)
+        data = list(map(list, data.toarray()))
+        return data
+        # print(len(data[0]))
+        # 通过pandas 生成这个数据的推荐
+        # print(matric_data, len(matric_y), len(matric_x))
 
-    def scanItemAsMatricY(self, matric_y):
+    def scanItemAsMatricY(self, matric_y, matric_rate_data=None):
         # 存储matric_y 中每个元素对应的y坐标值
         list_tmp_y = []
-        for item in matric_y :
+        for item in matric_y:
             list_tmp_y.append(self.y.index(item))
             # 配置其中每个数据
             matric_y[matric_y.index(item)] = 1
+        if matric_rate_data == None:
+            pass
+        else:
+            pass
+        return list_tmp_y
+
+    def makeMatric(self, x, y, matric_data):
+        col_x = np.array(x)
+        row_y = np.array(y)
+        data = np.array(matric_data)
+        return coo_matrix((data, (row_y, col_x)))

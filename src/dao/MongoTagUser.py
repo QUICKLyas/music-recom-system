@@ -1,7 +1,8 @@
 import mongo.ReadDataBase as rdb
 import mongo.WriteDataBase as wdb
-import panda.TagUser as tu
+import panda.TagUser as tupd
 import time as t
+import pandas as pd
 import numpy as np
 
 from scipy.sparse import coo_matrix, csr_matrix
@@ -29,7 +30,7 @@ class TagofSongUserRecom():
         self.songs = []
         self.tags = []
         self.users_name = []
-        self.users_id = []
+        # self.users_id = []
         # mongo
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
@@ -100,6 +101,11 @@ class TagofSongUserRecom():
         # pandas_x = self.x
         # pandas_y = self.y
         # 生成pandas 表格
+        tudf = tupd.TUPandas(datas=data, items=self.y, users=self.x)
+        # 开始将tudf 中的数据根据上面的dict_tags中的数据进行替换
+        tudf.df = self.changeDataCounTagTUDF(list_id, dict_tags, tudf.df)
+        # 然后使用pearson 获取 其中的相关性
+        tudf
         return
 
     # 生成最后的tag表 开始的函数方法，
@@ -169,8 +175,8 @@ class TagofSongUserRecom():
             data[data.index(i)] = [tag_col[data.index(i)], i]
         # print(data)
         # 生成pandas
-        taguser = tu.TUPandas(datas=data, tags=tag_col,
-                              users=["name", "count"])
+        taguser = tupd.TUPandas(datas=data, tags=tag_col,
+                                users=["name", "count"])
         # print(taguser.df)
         # 形成关于用户的收藏的歌曲中的占比
         taguser.computeRateofTag()  # 具体计算方法在pandas中进行
@@ -238,7 +244,7 @@ class TagofSongUserRecom():
         matric_x = []  # 矩阵 x 值
         for item in docs:
             self.users_name.append(item['name'])
-            self.users_id.append(item['id'])
+            self.x.append(item['id'])
             # 第index_item列,表示当前操作的item在docs中的位置
             index_item = docs.index(item)
             # print(index_item)
@@ -246,12 +252,8 @@ class TagofSongUserRecom():
             # 循环每个item内的tags形成行标
             list_tmp = []  # 所有用户拥有的tags（没有去重的情况下）
             col_tmp = []  # 暂存当前用户所在位置，用于之后形成的matric 时作为x值
-            list_rate_tmp = []
             for tag in item['tags']:
                 list_tmp.append(tag)
-                # 对list_tmp中的数据进行概率统计，然后存储到新的数据list中，用于Pearson相关系数的计算
-                list_tmp_rate = self.makeTagUserRateDataPandas(item['id'])
-                print(list_tmp_rate)
                 col_tmp.append(int(index_item))
             # 纵轴坐标 y
             self.y.extend(list_tmp)  # （没有去重）
@@ -265,9 +267,20 @@ class TagofSongUserRecom():
                                matric_data=matric_data)
         data = list(map(list, data.toarray()))
         return data
-        # print(len(data[0]))
-        # 通过pandas 生成这个数据的推荐
-        # print(matric_data, len(matric_y), len(matric_x))
+
+    # 替换pandas中的数值为次数
+    def changeDataCounTagTUDF(self, list_x: list, docs: dict, df: pd.DataFrame) -> pd.DataFrame:
+        for item in list_x:
+            # 生成y轴坐标
+            list_tmp_tag = list(docs[item].keys())
+            # print(docs[item])
+            for tag in list_tmp_tag:
+                # 先行后列
+                df.loc[tag, item] = docs[item][tag]
+                # break
+            # break
+        df_result = df
+        return df_result
 
     def scanItemAsMatricY(self, matric_y, matric_rate_data=None):
         # 存储matric_y 中每个元素对应的y坐标值

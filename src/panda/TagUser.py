@@ -5,9 +5,9 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 
 class TUPandas (object):
-    def __init__(self, datas, tags, users) -> None:
+    def __init__(self, datas, items, users) -> None:
         self.data = datas
-        self.items = tags
+        self.items = items
         self.users = users
         self.df = pd.DataFrame(
             self.data, columns=self.users, index=self.items)

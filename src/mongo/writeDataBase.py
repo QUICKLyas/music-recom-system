@@ -32,10 +32,10 @@ class WriteColle (object):
         for i in docs:
             # 判断是否存在该数据，不存在，将数据插入 存在就更新数据
             if self.isDocExtists(i, collection_name) != True:
-                print("new coll", i['id'])
+                print("new coll", i['name'], "in", collection_name)
                 cols.insert_one(i)
             else:
-                print("update coll", i['id'])
+                print("update coll", i['name'], "in", collection_name)
                 # update_one 需要生成两个重要的字典控制更新
                 self.updateDocumentHard(i, cols)
 

@@ -48,23 +48,17 @@ class TUPandas (object):
             match sign:
                 case 0:  # 0 时默认获取前N=5个数据
                     topN = list(df_topN_sorted.index[:5])
+                    topN_users[i] = topN
                 case 1:  # 1 获取几个相似度大于阈值0.95的用户
                     topN = self.getUserWithPearson(
                         df_topN_sorted)
-                    print(topN)
+                    topN_users[i] = topN
                     break
-            topN_users[i] = topN
         return topN_users
 
     # 获取df中大于阈值（默认0.95）的数据
     def getUserWithPearson(self, df_top, threshold=0.95) -> list:
-        print(df_top[(df_top.loc[:, 'RuRuUIH'] <= threshold)])
-        # data =  data.drop(index = data[(data.ZH_Term_len == 0)].index.tolist())
-        # data = df_top.drop(
-        # index=df_top[(df_top.loc[:, 'RuRuUIH'] <= threshold)].index.tolist())
-        # print(data)
-        topPearson_95 = []
-        # topPearson_95 = df[df.loc[1] >= threshold]
+        topPearson_95 = list(df_top[(df_top[:] > threshold)].index)
         return topPearson_95
 
     # 计算某个tag在所有用户收藏的占比

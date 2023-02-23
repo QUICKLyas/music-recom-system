@@ -6,7 +6,7 @@ import dao.MongoTagUser as tu
 import dao.MongoTagUser as mtu
 
 mongotu = mtu.TagofSongUserRecom(user_id="0bc2cc42a7be11edb7f600155daffd24")
-mongotu.makeRecomAnswerForUser(limit=50, page=0)
+mongotu.makeRecomUsersSet()
 # users = ["A", "B", "C", "D"]
 
 # tags = ["..", "...", "...."]

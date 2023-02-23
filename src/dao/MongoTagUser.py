@@ -60,16 +60,15 @@ class TagofSongUserRecom():
         pass
 
     # 生成我们需要内容：关于tag相似度获取的用户集
+    # 外部使用当前的方法来调用整个过程包括保存到数据库中
     def makeRecomUsersSet(self, limit="ALL"):
         print("[" + t.asctime(t.localtime()) + "]" +
-              "Start" + "make recommend song answer")
-        if limit == "ALL":
-            self.saveDataSetRecomAnswer()
-        else:
-            self.saveDataSetRecomAnswer()
+              "Start " + "make similarity users answer")
+        self.saveDataSetRecomAnswer(
+            self.makeRecomAnswerForUser(), id=self.user_id)
 
     # 首先应该获取用户的信息然后生成xy轴和矩阵
-    def makeRecomAnswerForUser(self, limit=50, page=0):
+    def makeRecomAnswerForUser(self, limit=50) -> dict:
         # 获取单个用户信息
         doc = self.rdb.findDocument(
             collection_name="like", query=self.query, projection=self.projections)
@@ -105,9 +104,7 @@ class TagofSongUserRecom():
         # 开始将tudf 中的数据根据上面的dict_tags中的数据进行替换
         tudf = self.changeDataCountTagTUDF(list_name, dict_tags, tudf)
         # print(tudf.df)
-        # 然后使用pearson 获取其中的相关性
-        self.makeRecomDcition(df_object=tudf)
-        return
+        return self.makeRecomDcition(df_object=tudf)
 
     # 生成最后的tag表 开始的函数方法，
     # 如果我们是app调用程序
@@ -116,15 +113,15 @@ class TagofSongUserRecom():
     def makeTagRateAnswer(self):
         print("[" + t.asctime(t.localtime()) + "]" +
               "Start" + "make tag's rate answer")
-        while True:
-            # 如果 doc 的长度为 0 设置推出循环
-            if self.doc_length == 0:
-                break
-            # 如果 doc 的长度为 非 0 运行下面的程序 步骤
-            diction = self.makeTagUserRateDataPandas()
-            # save 操作
-            self.saveDataSetRecomAnswer(diction)
-            self.page += 1
+        # while True:
+        #     # 如果 doc 的长度为 0 设置推出循环
+        #     if self.doc_length == 0:
+        #         break
+        #     # 如果 doc 的长度为 非 0 运行下面的程序 步骤
+        #     diction = self.makeTagUserRateDataPandas()
+        #     # save 操作
+        #     self.saveDataSetRecomAnswer(diction)
+        #     self.page += 1
         print("successfully done")
         return
 
@@ -186,13 +183,12 @@ class TagofSongUserRecom():
         return list_diction
 
     # 保存操作
-    def saveDataSetRecomAnswer(self, diction: dict):
-        self.wdb.updateDocumentSimple(
-            query={
-                'id': self.id
-            }, projection={
-                '$set': {"tags_rate": diction}
-            }, collection_name="recom")
+    def saveDataSetRecomAnswer(self, diction: dict, id):
+        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
+        # print(docs)
+        self.wdb.writeDocument(
+            docs=docs, collection_name="recom")
+        return docs
 
     # 判断 docs中是否存在 doc 返回doc 和 docs 合并后的list
     def isDocinDocs(self, doc, docs) -> list:
@@ -271,17 +267,22 @@ class TagofSongUserRecom():
 
     # 利用pandas和pearson形成相关性最高的几个用数据，默认推荐5个人，如果有推荐阈值
     def makeRecomDcition(self, df_object: tupd.TUPandas):
-        # df_object.makeSimilarityWithPearson()
-        # diction = df_object.makeRecomUserByTag(
-        #     topN=df_object.makeTopNUsers(
-        #         similar=df_object.df, sign=1)
-        # )
         # 变量
-        df_object.makeTopNUsers(similar=df_object.makeSimilarityWithPearson(),
-                                sign=1)
-        return
-    # 替换pandas中的数值为次数
+        diction = df_object.makeTopNUsers(similar=df_object.makeSimilarityWithPearson(),
+                                          sign=1)
+        # 利用当前用户的信息确定他们的id值形成对应的list_id
+        diction[self.user_name] = self.makeListIdWithUserName(
+            diction[self.user_name])
+        return diction
 
+    # 利用当前用户的信息确定他们的id值形成对应的list_id
+    def makeListIdWithUserName(self, list_name: list) -> list:
+        list_id = []
+        for name in list_name:
+            list_id.append(self.users_id[self.x.index(name)])
+        return list_id
+
+    # 替换pandas中的数值为次数
     def changeDataCountTagTUDF(self, list_x: list, docs: dict, df_object: tupd.TUPandas) -> tupd.TUPandas:
         for item in list_x:
             # 生成y轴坐标
@@ -311,3 +312,15 @@ class TagofSongUserRecom():
         row_y = np.array(y)
         data = np.array(matric_data)
         return coo_matrix((data, (row_y, col_x)))
+
+    # 设定保存的格式，在本类中，每次调用都是单个用户的调用，
+    def changeDataFormat(self, diction: dict, list_keys: list) -> list:
+        docs = []
+        for key in list_keys:
+            diction_tmp = {
+                "id": self.user_id,
+                "name": key,
+                "RecUsers": diction[key]
+            }
+            docs.append(diction_tmp)
+        return docs

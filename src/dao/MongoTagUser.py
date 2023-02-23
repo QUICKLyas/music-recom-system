@@ -31,9 +31,20 @@ class TagofSongUserRecom():
             self.query = {
                 'id': self.user_id
             }
-        # 设置projection ,知识不需要_id(ObjectId)
+        # 设置projection ,不需要_id(ObjectId)，判断tag 不需要 song 的 id
         self.projections = {
-            "_id": 0
+            "_id": 0,
+            "name": 1,
+            "id": 1,
+            "tags": 1,
+            # "songs.id": 1,
+            # "songs.name": 1
+        }
+        self.a_projections = {
+            "_id": 0,
+            "name": "$name",
+            "id": "$id",
+            "tags": "$tags"
         }
         pass
 
@@ -43,20 +54,29 @@ class TagofSongUserRecom():
               "Start" + "make recommend song answer")
         if limit == "ALL":
             self.saveDataSetRecomAnswer()
+        else:
+            self.saveDataSetRecomAnswer()
 
     # 首先应该获取用户的信息然后生成xy轴和矩阵
     def makeRecomAnswerForUser(self, limit=50, page=0):
         matrix_id = []
         user_col = []
         tag_row = []
+        # 获取单个用户信息
+        doc = self.rdb.findDocument(
+            collection_name="like", query=self.query, projection=self.projections)
         # 随机获取一定数量的用户来计算tag 相似度
-
-        docs = self.rdb.findDocument(
-            collection_name="like",
-            query=self.query,
-            projection=self.projections,
-            limit=50)
-
+        # 统一获取其他用户的信息
+        querys = [{'$sample': {"size": limit-1}}]
+        project = {'$project': self.a_projections}
+        querys.append(project)
+        docs = self.rdb.aggregateDocument(
+            collection_name="like", querys=querys)
+        # print(doc)
+        # print(len(docs))
+        # 判断 docs中是否存在 doc
+        docs = self.isDocinDocs(doc=doc, docs=docs)
+        
         return
 
     # 生成最后的tag表 开始的函数方法，
@@ -140,3 +160,15 @@ class TagofSongUserRecom():
             }, projection={
                 '$set': {"tags_rate": diction}
             }, collection_name="recom")
+
+    # 判断 docs中是否存在 doc 返回doc 和 docs 合并后的list
+    def isDocinDocs(self, doc, docs) -> list:
+        for item in docs:
+            # print(item['id'])
+            if item['id'] == self.user_id:
+                docs.remove(item)
+                break
+            else:
+                continue
+        doc.extend(docs)
+        return doc

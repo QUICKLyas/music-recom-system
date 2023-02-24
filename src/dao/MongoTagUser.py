@@ -159,6 +159,11 @@ class TagofSongUserRecom():
         matric_data = []  # 矩阵中值
         matric_y = []  # 矩阵 y 值
         matric_x = []  # 矩阵 x 值
+        # 确保这些内容是在开始的时候是空的
+        self.x = []
+        self.y = []
+        self.users_id = []
+
         for item in docs:
             self.x.append(item['name'])
             self.users_id.append(item['id'])
@@ -338,7 +343,6 @@ class TagofUserCountRate():
     def __init__(self) -> None:
         # 调用本地另外一个类
         self.tucrate = TagofSongUserRecom()
-
         # mongo
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
@@ -379,7 +383,7 @@ class TagofUserCountRate():
             if len(docs) <= 10:
                 # 重新获取docs
                 querys = [{'$sample': {"size": limit}}]
-                project = {'$project': self.a_projections}
+                project = {'$project': self.tucrate.a_projections}
                 querys.append(project)
                 docs = self.rdb.aggregateDocument(
                     collection_name="like", querys=querys)
@@ -392,9 +396,15 @@ class TagofUserCountRate():
 
     def makeOneofLoopTagRateFromMongo(self, docs):
         dict_result = {}
+
+        list_name = self.tucrate.getItemFromDocs(docs=docs, key='name')
+        # list_id = self.tucrate.getItemFromDocs(docs=docs, key='id')
+        dict_tags = self.makeMatricTagCountData(docs=docs)
+        print(dict_tags)
         data = self.tucrate.makeXYMatric(docs=docs)
-        print(len(data), len(self.tucrate.x), len(self.tucrate.y))
+        print(len(self.tucrate.x), len(self.tucrate.y))
         tudf = tupd.TUPandas(datas=list(
             map(list, data.toarray())), items=self.tucrate.y, users=self.tucrate.x)
         print(tudf.df)
+        tudf = self.changeDataCountTagTUDF(list_name, dict_tags, tudf)
         return dict_result

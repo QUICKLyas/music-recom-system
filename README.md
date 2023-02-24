@@ -2,6 +2,18 @@
 
 #### 介绍
 Recommend System
+未上传mongo连接库
+创建
+src/utils/MongoUser.py
+user = {
+    "mongoDB": {
+        "username": "用户名",
+        "password": "用户密码"
+    },
+    "IP": "服务器ID",
+    "port": "27017",
+    "database": "数据库名"
+}
 
 #### 软件架构
 软件架构说明

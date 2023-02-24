@@ -140,6 +140,7 @@ class TagofSongUserRecom():
     # 通过者个docs 生成一组 matric_rate_data数据
     def makeMatricTagCountData(self, docs):
         diction = {}
+        print(docs)
         for item in docs:
             # print(Counter(item['tags']))
             # print(item)
@@ -382,8 +383,10 @@ class TagofUserCountRate():
             # 判断获取的数据数量是否足够，不够采用随机获取方法获取数据
             if len(docs) <= 10:
                 # 重新获取docs
+                projections = {
+                    "_id": 0, "name": "$name", "id": "$id", "tags": "$tags", "songs": "$songs"}
                 querys = [{'$sample': {"size": limit}}]
-                project = {'$project': self.tucrate.a_projections}
+                project = {'$project': projections}
                 querys.append(project)
                 docs = self.rdb.aggregateDocument(
                     collection_name="like", querys=querys)
@@ -392,19 +395,19 @@ class TagofUserCountRate():
             # 统计计算tag 的数量，
             # 统计用户名字
             dict_user_tag_rate = self.makeOneofLoopTagRateFromMongo(docs=docs)
+            break
         return
 
     def makeOneofLoopTagRateFromMongo(self, docs):
         dict_result = {}
 
         list_name = self.tucrate.getItemFromDocs(docs=docs, key='name')
-        # list_id = self.tucrate.getItemFromDocs(docs=docs, key='id')
-        dict_tags = self.makeMatricTagCountData(docs=docs)
-        print(dict_tags)
+        # print(docs)
+        dict_tags = self.tucrate.makeMatricTagCountData(docs=docs)
         data = self.tucrate.makeXYMatric(docs=docs)
-        print(len(self.tucrate.x), len(self.tucrate.y))
         tudf = tupd.TUPandas(datas=list(
             map(list, data.toarray())), items=self.tucrate.y, users=self.tucrate.x)
-        print(tudf.df)
-        tudf = self.changeDataCountTagTUDF(list_name, dict_tags, tudf)
+        tudf = self.tucrate.changeDataCountTagTUDF(list_name, dict_tags, tudf)
+        df_rate = tudf.computeRateofTag()
+        print(df_rate)
         return dict_result

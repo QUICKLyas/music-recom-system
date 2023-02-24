@@ -86,14 +86,21 @@ class TUPandas (object):
     # 计算tag占比
     def computeRateofTag(self):
         data = self.df
-        # print(self.df[self.df.columns[0]].sum())
-        data['rate'] = (self.df[self.df.columns[1]] /
-                        self.df[self.df.columns[1]].sum())
-        self.df = self.formatRateforTag(data=data)
-        return
+        columns = list(data.columns.values)
+        index = list(data.index)
+        # print(columns)
+        print(data)
+        for item in columns:
+            print(data[item])
+            for idx in index:
+                data.loc[idx, item] = (self.df.loc[idx, item] /
+                                       self.df.loc[:, item].sum())
+        df_result = self.formatRateforTag(data=data)
+        return df_result
 
     # 形成对应的list
     def formatRateforTag(self, data):
-        data = data.sort_values('rate', ascending=False, kind='mergesort')
-        data['rate'] = data['rate'].apply(lambda x: format(x, '.2%'))
+        # data = data.sort_values('rate', ascending=False, kind='mergesort')
+
+        data = data.apply(lambda x: format(x, '.2%'))
         return data

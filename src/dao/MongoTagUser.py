@@ -140,7 +140,7 @@ class TagofSongUserRecom():
     # 通过者个docs 生成一组 matric_rate_data数据
     def makeMatricTagCountData(self, docs):
         diction = {}
-        print(docs)
+        # print(docs)
         for item in docs:
             # print(Counter(item['tags']))
             # print(item)
@@ -151,7 +151,7 @@ class TagofSongUserRecom():
                 # print(Counter(list_tmp))
                 # break
             arr = Counter(list_tmp)
-            diction[item['name']] = arr
+            diction[item['name']] = dict(arr)
         return diction
 
     # 根据以上docs 来生成 xy轴，矩阵
@@ -400,14 +400,28 @@ class TagofUserCountRate():
 
     def makeOneofLoopTagRateFromMongo(self, docs):
         dict_result = {}
-
-        list_name = self.tucrate.getItemFromDocs(docs=docs, key='name')
         # print(docs)
         dict_tags = self.tucrate.makeMatricTagCountData(docs=docs)
         data = self.tucrate.makeXYMatric(docs=docs)
         tudf = tupd.TUPandas(datas=list(
             map(list, data.toarray())), items=self.tucrate.y, users=self.tucrate.x)
-        tudf = self.tucrate.changeDataCountTagTUDF(list_name, dict_tags, tudf)
+        tudf = self.tucrate.changeDataCountTagTUDF(
+            list(dict_tags.keys()), dict_tags, tudf)
+        # self.checkTagCount(
+        #     dict_tags["RuRuUIH"], list(tudf.df.loc[:, "RuRuUIH"]),
+        #     list(tudf.df.index))
+        # print(tudf.df.loc["", "RuRuUIH"])
         df_rate = tudf.computeRateofTag()
-        print(df_rate)
+        # 将df_rate中的每个数据依次排序
+        tudf.sortDF(df_rate)
         return dict_result
+
+    def checkTagCount(self, dict, data, name):
+        sum = 0
+        for item in list(dict.keys()):
+            # print(item, data[name.index(item)])
+            sum += data[name.index(item)]
+            # print(sum)
+            # if dict[item] == data[name.index(item)]:
+            #     print(True)
+        # print(sum)

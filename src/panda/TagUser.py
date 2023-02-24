@@ -89,18 +89,58 @@ class TUPandas (object):
         columns = list(data.columns.values)
         index = list(data.index)
         # print(columns)
-        print(data)
+
         for item in columns:
-            print(data[item])
+            sum = self.df.loc[:, item].sum()
             for idx in index:
-                data.loc[idx, item] = (self.df.loc[idx, item] /
-                                       self.df.loc[:, item].sum())
-        df_result = self.formatRateforTag(data=data)
+                # print(item, idx)
+                # print(self.df.loc[idx, item])
+                # print(self.df.loc[:, item].sum())
+                data.loc[idx, item] = (self.df.loc[idx, item] / sum)
+            # break
+        # 应该先排序，避免出现排序bug，之后再修改输出格式
+
+        # df_result = self.formatRateforTag(data=data)
+        # print(df_result)
+        df_tmp_result = self.sortDataFrameColumns(df=data)
+        print(df_tmp_result)
+
         return df_result
 
     # 形成对应的list
     def formatRateforTag(self, data):
         # data = data.sort_values('rate', ascending=False, kind='mergesort')
-
-        data = data.apply(lambda x: format(x, '.2%'))
+        data = data.applymap(lambda x: format(x, '.2%'))
         return data
+
+    def sortDataFrameColumns(self, df: pd.DataFrame) -> dict:
+        columns = list(df.columns.values)
+        for item in columns:
+            # df_topN = df.loc[:, item]
+            df_topN_sorted = df.sort_values(
+                by=item, ascending=False, kind="mergesort")
+            print(df_topN_sorted[:, item])
+            # 将排序号的数据传入下列方法中形成单独的字典，并且设置好其中数据格式为百分数保留两位小数
+
+            self.formatDictForUserInTag(
+                list(df_topN_sorted[:, item]), df.index)
+            # 获取前9个，以及其他
+            # print(df_topN_sorted[:9])
+            # topN = {df_topN_sorted.index[:9]: df_topN_sorted[:9]}
+
+            break
+        return dict
+
+    def formatDictForUserInTag(self, list_sort: list, list_index: list) -> dict:
+        diction = {}
+        # m1 = round(float(c) * 100, 2)
+        # m2 = "%.2f%%" % (m1)
+        # print(m2)  # 98.77%
+        # print(df.loc[:9, name].sum())
+        # diction["其他"] = 1 - df.loc[:9, name].sum()
+        # index = df.loc[:9].index
+
+        # for idx in index:
+        #     print(df.loc[idx, name])
+        #     diction[idx] = df.loc[idx, name]
+        # print(diction)

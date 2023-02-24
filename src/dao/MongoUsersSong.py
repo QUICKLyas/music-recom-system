@@ -21,12 +21,8 @@ class UserSongRecom (object):
         self.x = []  # x 轴坐标
         self.y = []  # y 轴坐标
         self.users_name = []
-        # self.song_name = []
         self.users_id = []
-        self.song_id = None
-        self.songs_id = []
         self.songs_name = []
-        self.matrix = []
 
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
@@ -38,12 +34,11 @@ class UserSongRecom (object):
             self.query = {
                 'id': self.user_id
             }
-        self.projections = {
+        self.a_projections = {
             "_id": 0,
-            "id": 1,
-            "name": 1,
-            "RecomUsers": 1
-            # "songs.name": 1
+            "id": "$id",
+            "name": "$name",
+            "songs": "$songs",
         }
         pass
 
@@ -53,17 +48,66 @@ class UserSongRecom (object):
     # 主要是获取用户对象是哪些用户
     def makeRecomSongAnswer(self, limit="ALL"):
         print("[" + t.asctime(t.localtime()) + "]" +
-              "Start" + "make recommend song answer")
+              "Start" + "make recommend song answer ( limit", limit, ")")
         if limit == "ALL":
-            self.saveUserSongRecomAnswer(self.makeRecomAnswerLoop(limit=-1))
+            self.makeRecomAnswerLoop(limit=-1)
         else:  # 只获取目标用户的推荐结果，并从数据库中调用
             self.saveUserSongRecomAnswer(self.makeRecomAnswerSong())
         print("successfully done")
 
+    # 所有用户一次性土建，确保性能，只获取前50
+    # 获取数据库中的信息，包括 用户 name，
+    # 用户下的tags songs {name 和 id}
+    # 处理collection = like
+    # page 失去的页数总计
+    # limit 是取的每页大小
+    def makeRecomAnswerLoop(self, limit=50):
+        n = 0
+        while True:
+            # 基础获取方法，不随机，按顺序定量拿数据
+            projections = {"_id": 0, "id": 1, "name": 1, "songs": 1}
+            docs = self.rdb.findDocument(
+                collection_name="like",
+                projection=projections,
+                limit=limit, page=n)
+            # 判断是否为空数据
+            if len(docs) <= 0:
+                break
+            # 判断获取的数据数量是否足够，不够采用随机获取方法获取数据
+            if len(docs) <= 10:
+                # 重新获取docs
+                querys = [{'$sample': {"size": limit}}]
+                project = {'$project': self.a_projections}
+                querys.append(project)
+                docs = self.rdb.aggregateDocument(
+                    collection_name="like", querys=querys)
+            # 翻页
+            n += 1
+            dict_user_song = self.makeSongFromMongoOneofLoop(docs=docs)
+            self.saveUserSongRecomAnswer(dict_user_song)
+        return
+
+    # makeRecomAnswerLoop(self, limit=50)当中单独的一个循环体中数据处理的部分
+    def makeSongFromMongoOneofLoop(self, docs):
+        # 通过docs 生成一组
+        # matrix_data = data
+        # pandas_x = self.x
+        # pandas_y = self.y
+        data = self.makeXYMatric(docs=docs)
+        # print(data)
+        sudf = supd.SUPandas(datas=list(
+            map(list, data.toarray())), items=self.y, users=self.x)
+        # 歌曲推荐的结果
+        # sign 值默认时表示获取所有的用户
+        dict_user_song = self.makeRecomDcition(df_object=sudf)
+        return dict_user_song
+
+    # 只获取一个用户的推荐歌曲信息
     def makeRecomAnswerSong(self):
         # 获取recom中之前设置的数据
+        projections = {"_id": 0, "id": 1, "name": 1, "RecomUsers": 1}
         doc = self.rdb.findDocument(
-            collection_name="recom", query=self.query, projection=self.projections)
+            collection_name="recom", query=self.query, projection=projections)
         # 储存请求用户的名字
         self.user_name = doc[0]['name']
         # 跟据数据库给的RecUsers来处理数据
@@ -74,13 +118,12 @@ class UserSongRecom (object):
         list_users_id.extend(doc[0]['RecomUsers'])
         # 构成xy轴的内容源头
         docs = self.getSongsWithUserIdFromMongo(array=list_users_id)
-        list_id = self.getItemFromDocs(docs=docs, key='id')
-        list_name = self.getItemFromDocs(docs=docs, key='name')
         # matrix_data = data
         # pandas_x = self.x
         # pandas_y = self.y
         data = self.makeXYMatric(docs=docs)
-        sudf = supd.SUPandas(datas=data, items=self.y, users=self.x)
+        sudf = supd.SUPandas(datas=list(
+            map(list, data.toarray())), items=self.y, users=self.x)
         # 歌曲推荐的结果
         dict_user_song = self.makeRecomDcition(df_object=sudf, sign=-1)
         return dict_user_song
@@ -133,7 +176,7 @@ class UserSongRecom (object):
         # print(len(matric_data))
         data = self.makeMatric(x=matric_x, y=matric_y,
                                matric_data=matric_data)
-        return list(map(list, data.toarray()))
+        return data
 
     # 提取docs中的内容
     def getItemFromDocs(self, docs, key) -> list:
@@ -158,80 +201,6 @@ class UserSongRecom (object):
         data = np.array(matric_data)
         return coo_matrix((data, (row_y, col_x)))
 
-    # 利用pandas和jaccard系数生成相似度
-    # def makeRecomDcition(self, df_object: supd.SUPandas):
-    #     return
-    # 获取数据库中的信息，包括 用户 name，
-    # 用户下的tags songs {name 和 id}
-    # 处理collection = like
-    # page 失去的页数总计
-    # limit 是取的每页大小
-
-    def makeRecomAnswerLoop(self, limit=50, page=0):
-        matrix_id = []
-        user_col = []
-        song_row = []
-
-        n = 0
-        while True:
-            if n > page:
-                break
-            docs = self.rdb.findDocument(
-                collection_name="like",
-                projection=self.projections,
-                limit=limit, page=n)
-            # 判断是否为空数据
-            if len(docs) <= 0:
-                break
-            # 翻页
-            n += 1
-            # print(len(docs[0]['songs']), len(docs[1]['songs']))
-            # print(list(docs['0']))
-            for item in docs:
-                # 横轴坐标 x
-                # 对应添加id 之后生成的数据存储的时候用上
-                self.users_name.append(item['name'])
-                self.users_id.append(item['id'])
-                # 第 index_col 列
-                index_col = docs.index(item)
-                # 用于暂存当前用户的song 的id
-                list_tmp = []
-                # 暂存当前用户index
-                col_tmp = []
-                for song in item['songs']:
-                    # 0: 0-202 1:203-818 819-1028
-                    # self.song_name.append(song['name'])
-                    list_tmp.append(song['id'])
-                    # 第index_col 列
-                    col_tmp.append(int(index_col))
-                # 纵轴坐标 y
-                self.songs_id.extend(list_tmp)
-                # 按顺序存储数据到list中
-                matrix_id += list_tmp
-                user_col += col_tmp
-                # 去重
-                self.songs_id = list(set(self.songs_id))
-            # 当每个用户都已经扫描过后
-            # 开始通过matrix_id 和 self.song_id确认 song_row
-            # 设置单独的方法
-            song_row = self.scanSongId(
-                song_id=self.song_id, matrix_id=matrix_id)
-        # song_row 第 y 行
-        # user_col 第 x 列
-        # matrix_id 对应的 数据
-        data = self.makeMatric(
-            x=song_row, y=user_col, matric_data=matrix_id)
-        data = list(map(list, data.toarray()))
-        # data = list(data.toarray())
-        # data,二维数据表
-        # 横轴坐标  self.user_name
-        # 纵轴坐标  self.song_id
-        # 一次生成我们的pandas 表格
-        # 调用方法 makeRecomAnswer 生成相似推荐的结果字典
-        dict_recom = self.makeRecomDcition(df_object=supd.SUPandas(
-            datas=data, songs=self.user_name, users=self.song_id))
-        return dict_recom
-
     # song_num=50 默认推荐50 首
     # -1 时 获取特定用户
     # 获取都有用户
@@ -248,10 +217,6 @@ class UserSongRecom (object):
         if sign == -1:
             # 计算所有的推荐的结果，但是返回的只有一个人
             dict_result = {self.user_name: diction[self.user_name]}
-            # diction = df_object.makeTopNUsers(
-            #     similar=df_object.makeSimilarityBetweenUser())
-            # diction[self.user_name] = self.makeListIdWithSongId(
-            #     diction[self.user_name])
             return dict_result
         else:
             # 直接将所有的信息返回
@@ -261,7 +226,6 @@ class UserSongRecom (object):
         # 存储对应位置的数据
         list_tmp_row = []
         for id in matrix_id:
-            # print(song_id.index(id))
             list_tmp_row.append(song_id.index(id))
             matrix_id[matrix_id.index(id)] = 1
         return list_tmp_row
@@ -269,7 +233,6 @@ class UserSongRecom (object):
     # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
     # 同时需要有 id,name,RecomSong
     # 通过id进行数据存在判断，
-
     def changeDataFormat(self, diction: dict, list_keys: list):
         docs = []
         for key in list_keys:
@@ -284,13 +247,7 @@ class UserSongRecom (object):
     # 保存操作
     def saveUserSongRecomAnswer(self, diction: dict):
         docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
+        # print(docs)
         self.wdb.writeDocument(
             docs=docs, collection_name="recom")
         return docs  # 用户输出方法体中变量
-
-    # def makeMatrixSongUser(self, row, col, id):
-    #     row_y = np.array(row)
-    #     col_x = np.array(col)
-    #     data = np.array(id)
-    #     # 第 y 行 第 x 列
-    #     return coo_matrix((data, (row_y, col_x)))

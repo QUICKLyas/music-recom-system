@@ -61,11 +61,15 @@ class TagofSongUserRecom():
 
     # 生成我们需要内容：关于tag相似度获取的用户集
     # 外部使用当前的方法来调用整个过程包括保存到数据库中
-    def makeRecomUsersSet(self, limit="ALL"):
+    def makeRecomUsersSetAnswer(self, limit="ALL"):
         print("[" + t.asctime(t.localtime()) + "]" +
-              "Start " + "make similarity users answer")
-        self.saveDataSetRecomAnswer(
-            self.makeRecomAnswerForUser())
+              "Start " + "make similarity users answer ( limit", limit, ")")
+        # ALL 的时候默认计算每个用户
+        if limit == "ALL":
+            pass
+        else:  # 非ALL 的时候 表示个人获取的数量
+            self.saveDataSetRecomAnswer(
+                self.makeRecomAnswerForUser())
 
     # 首先应该获取用户的信息然后生成xy轴和矩阵
     def makeRecomAnswerForUser(self, limit=50) -> dict:
@@ -85,7 +89,6 @@ class TagofSongUserRecom():
         # print(len(docs))
         # 判断 docs中是否存在 doc 并合并
         docs = self.isDocinDocs(doc=doc, docs=docs)
-        # 通过docs 生成一组 matric_rate_data数据
         # 查找数据songs 便于 统计tags 出现的次数
         # 提取docs 中用户的id
         list_name = self.getItemFromDocs(docs=docs, key='name')
@@ -100,7 +103,8 @@ class TagofSongUserRecom():
         # pandas_y = self.y
         data = self.makeXYMatric(docs=docs)
         # 生成pandas 表格
-        tudf = tupd.TUPandas(datas=data, items=self.y, users=self.x)
+        tudf = tupd.TUPandas(datas=list(
+            map(list, data.toarray())), items=self.y, users=self.x)
         # 开始将tudf 中的数据根据上面的dict_tags中的数据进行替换
         tudf = self.changeDataCountTagTUDF(list_name, dict_tags, tudf)
         # print(tudf.df)
@@ -178,7 +182,6 @@ class TagofSongUserRecom():
         # 生成相应的矩阵数据集
         data = self.makeMatric(x=matric_x, y=matric_y,
                                matric_data=matric_data)
-        data = list(map(list, data.toarray()))
         return data
 
     # 利用pandas和pearson形成相关性最高的几个用数据，默认推荐5个人，如果有推荐阈值
@@ -328,3 +331,70 @@ class TagofSongUserRecom():
     #     list_diction = taguser.df.to_dict(orient='records')
     #     # print("list_diction:", list_diction)
     #     return list_diction
+
+
+class TagofUserCountRate():
+    # 统计每个用户的听歌倾向，统计Tag
+    def __init__(self) -> None:
+        # 调用本地另外一个类
+        self.tucrate = TagofSongUserRecom()
+
+        # mongo
+        self.rdb = rdb.ReadColle()
+        self.wdb = wdb.WriteColle()
+        pass
+    # 此方法默认是所有用户使用
+
+    def makeTagRateforUser(self, limit="ALL"):
+        print("[" + t.asctime(t.localtime()) + "]" +
+              "Start " + "make tag's rate fpr users answer ( limit", limit, ")")
+        # ALL 的时候默认计算每个用户
+        if limit == "ALL":
+            self.makeTagRateAnswerForUserLoop()
+            # self.tucrate.saveDataSetRecomAnswer(
+            # self.makeTagRateAnswerForUserLoop)
+            pass
+        else:  # 非ALL 的时候 表示个人获取的数量
+            pass
+            # self.tucrate.saveDataSetRecomAnswer(
+            #     self.makeTagRateAnswerForUser())
+
+    # 按顺序获取用户，限制每次获取多少个用户
+    def makeTagRateAnswerForUserLoop(self, limit=50):
+        # ,"id":1,"name":1,"songs":1,"tags":1
+        n = 0
+
+        while True:
+            docs = []
+            projections = {"_id": 0}
+            docs = self.rdb.findDocument(
+                collection_name="like",
+                projection=projections,
+                limit=limit, page=n
+            )
+            # 判断 当前 长度，小于等于0 推出循环结束程序
+            if len(docs) <= 0:
+                break
+            # 判断获取的数据数量是否足够，不够采用随机获取方法获取数据
+            if len(docs) <= 10:
+                # 重新获取docs
+                querys = [{'$sample': {"size": limit}}]
+                project = {'$project': self.a_projections}
+                querys.append(project)
+                docs = self.rdb.aggregateDocument(
+                    collection_name="like", querys=querys)
+            # 翻页
+            n += 1
+            # 统计计算tag 的数量，
+            # 统计用户名字
+            dict_user_tag_rate = self.makeOneofLoopTagRateFromMongo(docs=docs)
+        return
+
+    def makeOneofLoopTagRateFromMongo(self, docs):
+        dict_result = {}
+        data = self.tucrate.makeXYMatric(docs=docs)
+        print(len(data), len(self.tucrate.x), len(self.tucrate.y))
+        tudf = tupd.TUPandas(datas=list(
+            map(list, data.toarray())), items=self.tucrate.y, users=self.tucrate.x)
+        print(tudf.df)
+        return dict_result

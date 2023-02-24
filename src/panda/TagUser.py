@@ -84,7 +84,6 @@ class TUPandas (object):
         return user_similar.round(2)
 
     # 计算tag占比
-
     def computeRateofTag(self):
         data = self.df
         # print(self.df[self.df.columns[0]].sum())

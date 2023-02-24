@@ -45,13 +45,6 @@ class UserSongRecom (object):
             "RecomUsers": 1
             # "songs.name": 1
         }
-        # self.a_projections = {
-        #     "_id": 0,
-        #     "name": "$name",
-        #     "id": "$id",
-        #     "tags": "$tags"
-        #     # "songs": "$songs"
-        # }
         pass
 
     # app调用这个方法来启动数据计算
@@ -63,7 +56,7 @@ class UserSongRecom (object):
               "Start" + "make recommend song answer")
         if limit == "ALL":
             self.saveUserSongRecomAnswer(self.makeRecomAnswerLoop(limit=-1))
-        else:
+        else:  # 只获取目标用户的推荐结果，并从数据库中调用
             self.saveUserSongRecomAnswer(self.makeRecomAnswerSong())
         print("successfully done")
 
@@ -88,12 +81,11 @@ class UserSongRecom (object):
         # pandas_y = self.y
         data = self.makeXYMatric(docs=docs)
         sudf = supd.SUPandas(datas=data, items=self.y, users=self.x)
-        # print(sudf.df)
-        print(self.makeRecomDcition(df=sudf))
-        return
+        # 歌曲推荐的结果
+        dict_user_song = self.makeRecomDcition(df_object=sudf, sign=-1)
+        return dict_user_song
 
     # 根据用户id 获取数据
-
     def getSongsWithUserIdFromMongo(self, array) -> list:
         query = {'id': {"$in": array}}
         projection = {'_id': 0, 'id': 1, 'name': 1,
@@ -131,6 +123,8 @@ class UserSongRecom (object):
             self.songs_name += list_tmp_songs_name
             matric_x += col_tmp
             matric_data += list_tmp_songs_id
+        # 循环结束将数据替换到self.users_name中，便于之后使用
+        self.users_name = self.x
         # 扫描以上的matric_y 和 self.y(去重后),最后生成y值
         matric_y = self.scanItemAsMatricY(matric_y=matric_data)
         # 生成相应的矩阵数据集
@@ -148,7 +142,7 @@ class UserSongRecom (object):
             list_tmp.append(item[key])
         return list_tmp
 
-    # 扫描数据
+    # 扫描数据构成y轴坐标值
     def scanItemAsMatricY(self, matric_y, matric_rate_data=None) -> list:
         list_tmp_y = []
         for item in matric_y:
@@ -225,8 +219,8 @@ class UserSongRecom (object):
         # song_row 第 y 行
         # user_col 第 x 列
         # matrix_id 对应的 数据
-        data = self.makeMatrixSongUser(
-            row=song_row, col=user_col, id=matrix_id)
+        data = self.makeMatric(
+            x=song_row, y=user_col, matric_data=matrix_id)
         data = list(map(list, data.toarray()))
         # data = list(data.toarray())
         # data,二维数据表
@@ -234,17 +228,34 @@ class UserSongRecom (object):
         # 纵轴坐标  self.song_id
         # 一次生成我们的pandas 表格
         # 调用方法 makeRecomAnswer 生成相似推荐的结果字典
-        dict_recom = self.makeRecomDcition(df=supd.SUPandas(
+        dict_recom = self.makeRecomDcition(df_object=supd.SUPandas(
             datas=data, songs=self.user_name, users=self.song_id))
         return dict_recom
 
     # song_num=50 默认推荐50 首
-    def makeRecomDcition(self, df: supd.SUPandas, song_num=50):
-        diction = df.makeRecomUserBySong(
-            topN=df.makeTopNUsers(
-                similar=df.makeSimilarityBetweenUser()),
-            song_num=song_num)
-        return diction
+    # -1 时 获取特定用户
+    # 获取都有用户
+    def makeRecomDcition(self, df_object: supd.SUPandas, song_num=50, sign=1):
+        # 判断是只取出一个用户还是取出多个用户
+        # sign == -1 的时候使用 取出一个用户的信息
+        # 统一构成推荐列表
+        diction = df_object.makeTopNUsers(
+            similar=df_object.makeSimilarityBetweenUser(),
+            sign=1)
+        diction = df_object.makeRecomUserBySong(
+            topN=diction, song_num=song_num)
+        # print(diction)
+        if sign == -1:
+            # 计算所有的推荐的结果，但是返回的只有一个人
+            dict_result = {self.user_name: diction[self.user_name]}
+            # diction = df_object.makeTopNUsers(
+            #     similar=df_object.makeSimilarityBetweenUser())
+            # diction[self.user_name] = self.makeListIdWithSongId(
+            #     diction[self.user_name])
+            return dict_result
+        else:
+            # 直接将所有的信息返回
+            return diction
 
     def scanSongId(self, song_id, matrix_id):
         # 存储对应位置的数据
@@ -254,13 +265,6 @@ class UserSongRecom (object):
             list_tmp_row.append(song_id.index(id))
             matrix_id[matrix_id.index(id)] = 1
         return list_tmp_row
-
-    def makeMatrixSongUser(self, row, col, id):
-        row_y = np.array(row)
-        col_x = np.array(col)
-        data = np.array(id)
-        # 第 y 行 第 x 列
-        return coo_matrix((data, (row_y, col_x)))
 
     # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
     # 同时需要有 id,name,RecomSong
@@ -283,3 +287,10 @@ class UserSongRecom (object):
         self.wdb.writeDocument(
             docs=docs, collection_name="recom")
         return docs  # 用户输出方法体中变量
+
+    # def makeMatrixSongUser(self, row, col, id):
+    #     row_y = np.array(row)
+    #     col_x = np.array(col)
+    #     data = np.array(id)
+    #     # 第 y 行 第 x 列
+    #     return coo_matrix((data, (row_y, col_x)))

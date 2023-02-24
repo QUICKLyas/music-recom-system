@@ -259,89 +259,12 @@ class TagofSongUserRecom():
             docs=docs, collection_name="recom")
         return docs
 
-    # 生成最后的tag表 开始的函数方法，
-    # 如果我们是app调用程序
-    # 从此处启动相关程序
-    # 统计一个用户自己tag的占比
-    # def makeTagRateAnswer(self):
-    #     print("[" + t.asctime(t.localtime()) + "]" +
-    #           "Start" + "make tag's rate answer")
-    #     self.tags = dict(self.tags)
-    #     while True:
-    #         # 如果 doc 的长度为 0 设置推出循环
-    #         if self.doc_length == 0:
-    #             break
-    #         # 如果 doc 的长度为 非 0 运行下面的程序 步骤
-    #         diction = self.makeTagUserRateDataPandas()
-    #         print(diction)
-    #         # save 操作
-    #         # self.saveDataSetRecomAnswer(diction)
-    #         self.page += 1
-    #     print("successfully done")
-    #     return
-
-    # 内部通过这里调用方法
-    # def makeTagUserRateDataPandas(self, user_id=None, user_tags=None) -> list:
-    #     # 当前方法是开始方法
-    #     if user_id == None:
-    #         self.getTagFromMongo(self.user_id)
-    #     else:
-    #         self.getTagFromMongo(user_id)
-    #     # print(self.tags)
-    #     for item in self.songs:
-    #         # 记录tags 出现的次数
-    #         tags = item['union'][0]['tags']
-    #         for tag in tags:
-    #             self.tags[tag] += 1
-    #     # 统计最后的数据
-    #     return self.makeTagCountPandas(self.tags)
-
-    # 获得需要的数据重点
-    # 本class内部调用这个方法
-    # def getTagFromMongo(self, user_id, limit=1, n=0) -> None:
-    #     self.query["user_id"] = user_id
-    #     # 获取 数据 重点
-    #     doc = self.rdb.findDocument(
-    #         collection_name="like",
-    #         query=self.query,
-    #         projection=self.projections,
-    #         limit=1, page=self.page)
-    #     if len(doc) < 1:
-    #         self.doc_length = 0
-    #         return
-    #     doc = doc[0]
-    #     list_tags = doc['tags']
-    #     # 设置判断数据 非重点 方便处理数据
-    #     for item in list_tags:
-    #         print(item)
-    #         self.tags[item] = 0
-    #     self.user_name = doc['name']
-    #     self.id = doc['id']
-    #     self.songs = doc['songs']
-    #     return
-
-    # # 统计 tag 的 关系
-    # def makeTagCountPandas(self, diction: dict) -> list:
-    #     # print(len(self.songs))
-    #     tag_col = list(diction)
-    #     data = list(diction.values())
-    #     for i in data:
-    #         data[data.index(i)] = [tag_col[data.index(i)], i]
-    #     # print(data)
-    #     # 生成pandas
-    #     taguser = tupd.TUPandas(datas=data, tags=tag_col,
-    #                             users=["name", "count"])
-    #     # print(taguser.df)
-    #     # 形成关于用户的收藏的歌曲中的占比
-    #     taguser.computeRateofTag()  # 具体计算方法在pandas中进行
-    #     list_diction = taguser.df.to_dict(orient='records')
-    #     # print("list_diction:", list_diction)
-    #     return list_diction
-
 
 class TagofUserCountRate():
     # 统计每个用户的听歌倾向，统计Tag
     def __init__(self) -> None:
+        self.list_id = []
+        self.list_name = []
         # 调用本地另外一个类
         self.tucrate = TagofSongUserRecom()
         # mongo
@@ -394,8 +317,12 @@ class TagofUserCountRate():
             n += 1
             # 统计计算tag 的数量，
             # 统计用户名字
+            self.list_name = self.tucrate.getItemFromDocs(
+                docs=docs, key='name')
+            self.list_id = self.tucrate.getItemFromDocs(docs=docs, key='id')
             dict_user_tag_rate = self.makeOneofLoopTagRateFromMongo(docs=docs)
-            break
+            # print(dict_user_tag_rate['RuRuUIH'])
+            self.saveUserSongRecomAnswer(diction=dict_user_tag_rate)
         return
 
     def makeOneofLoopTagRateFromMongo(self, docs):
@@ -407,21 +334,26 @@ class TagofUserCountRate():
             map(list, data.toarray())), items=self.tucrate.y, users=self.tucrate.x)
         tudf = self.tucrate.changeDataCountTagTUDF(
             list(dict_tags.keys()), dict_tags, tudf)
-        # self.checkTagCount(
-        #     dict_tags["RuRuUIH"], list(tudf.df.loc[:, "RuRuUIH"]),
-        #     list(tudf.df.index))
-        # print(tudf.df.loc["", "RuRuUIH"])
-        df_rate = tudf.computeRateofTag()
+        dict_result = tudf.computeRateofTag()
         # 将df_rate中的每个数据依次排序
-        tudf.sortDF(df_rate)
         return dict_result
 
-    def checkTagCount(self, dict, data, name):
-        sum = 0
-        for item in list(dict.keys()):
-            # print(item, data[name.index(item)])
-            sum += data[name.index(item)]
-            # print(sum)
-            # if dict[item] == data[name.index(item)]:
-            #     print(True)
-        # print(sum)
+    # 设定保存的格式，在本类中，调用时一次性的（非一次性的操作需要重新编写）
+    def changeDataFormat(self, diction: dict, list_keys: list) -> list:
+        docs = []
+        for key in list_keys:
+            diction_tmp = {
+                "id": self.list_id[self.list_name.index(key)],
+                "name": key,
+                "TagsRate": diction[key]
+            }
+            docs.append(diction_tmp)
+        return docs
+    # 保存操作
+
+    def saveUserSongRecomAnswer(self, diction: dict):
+        docs = self.changeDataFormat(diction=diction, list_keys=list(diction))
+        # print(docs)
+        self.wdb.writeDocument(
+            docs=docs, collection_name="recom")
+        return docs  # 用户输出方法体中变量

@@ -46,7 +46,7 @@ class SUPandas():
                 case 0:  # 获取最相似的5个用户
                     topN = list(df_topN_sorted.index[:5])
                     topN_users[i] = topN
-                case 1:  # 1 获取几个杰卡德系数相似度大于用户相似度平均值的阈值的用户
+                case 1:  # 1 获取几个
                     average = df_topN_sorted[:].mean()
                     topN_users[i] = self.getUserWithJaccard(
                         df_topN_sorted, threshold=average)

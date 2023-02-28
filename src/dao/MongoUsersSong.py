@@ -2,6 +2,7 @@ import mongo.ReadDataBase as rdb
 import mongo.WriteDataBase as wdb
 import numpy as np
 import time as t
+import random
 import scipy.sparse
 # 生成二维矩阵的方法
 from scipy.sparse import coo_matrix, csr_matrix
@@ -294,14 +295,18 @@ class UserSongRecomAfterSongSimilarity(object):
         self.wdb = wdb.WriteColle()
         pass
 
+    # 启动程序
     def makeRecomBySongSimilarityAnswer(self, limit="ALL"):
         print("[" + t.asctime(t.localtime()) + "]" +
               "Start" + "make recommend song answer ( limit", limit, "song-song )")
         # self.saveUserSongRecomAnswer(self.makeRecomAnswerSong())
         if limit == "ALL":
-            self.makeRecomAnswerSong(sign=0)
+            self.saveUserSongRecomAnswer(
+                self.makeRecomAnswerSong(
+                    sign=0, update_name="SimilaritySongs", collection="song"))
         else:
-            self.makeRecomAnswerSong(sign=1)
+            self.saveUserSongRecomAnswer(
+                self.makeRecomAnswerSong(sign=1), update_name="RecomSong", collection="recom")
 
         print("successfully done")
 
@@ -329,46 +334,23 @@ class UserSongRecomAfterSongSimilarity(object):
             map(list, data.toarray())), items=self.usr.y, users=self.usr.x)
         # 歌曲推荐的结果，应该再一次保存用户列
         # 计划再处理数据的同时保存相似用户结果
-        # 当sign = 1 的时候 是表示求相似歌曲， sign 为 2 时 是生成用户的推荐结果
+        # 当sign = 0  的时候 是表示求相似歌曲， sign 为 1 时 是生成用户的推荐结果
         dict_song = {}
+        # 设置两种返回结果
         match sign:
             case 0:
-                dict_song = self.makeSimilaritySongDiction(
+                # 寻找相似歌曲
+                dict_song = self.makeSimilaritySongDictionForSong(
                     df_object=sudf)
             case 1:
+                # 寻找用户的推荐歌曲
                 projections = {"_id": 0, "songs": 1}
-                dict_song = self.makeRecomSong(
+                dict_song = self.makeRecomSongDictionForUser(
                     df_object=sudf, user_songs=self.rdb.findDocument(
                         collection_name="like", query=self.query, projection=projections)[0]['songs'])
-                print(dict_song)
-                # print(dict_user_song)
         return dict_song
 
-    def makeRecomSong(self, df_object: supd.SUPandas, user_songs: list):
-        diction = df_object.makeTopNSongs(
-            # 对用户收藏的歌曲，每首获取最相似的前5首
-            # 将这个数据进行几个合并，
-            # 然后将数据进行随机提取，
-            # 提取其中的 前5个
-            similar=df_object.makeSimilarityBetweenItem(),
-            song_cnt=5)
-        print(len(diction))
-        self.makeSongIdList(user_songs)
-        # print(user_songs.keys('id'))
-        # 循环用户自己的歌曲
-        # 首先获取用户收藏的歌曲
-        # self.saveUserSongRecomAnswer(diction)
-        return
-
-    def makeSongIdList(self, array: list):
-        list_tmp = []
-        print(len(array))
-        for item in array:
-            list_tmp.append(item['id'])
-        print(len(list_tmp))
-        return
-
-    def makeSimilaritySongDiction(self, df_object: supd.SUPandas):
+    def makeSimilaritySongDictionForSong(self, df_object: supd.SUPandas) -> dict:
         # 判断是只取出一个用户直接获取所有歌曲中最相似的歌曲
         # 统一构成推荐列表
         # 另存此处的topN_songs ，key是song标签，将这些数据存储到数据库中
@@ -380,14 +362,56 @@ class UserSongRecomAfterSongSimilarity(object):
             # 提取其中的 前5个
             similar=df_object.makeSimilarityBetweenItem(),
             song_cnt=5)
-        self.saveUserSongRecomAnswer(diction)
+        return diction
 
-    def saveUserSongRecomAnswer(self, diction: dict):
+    def makeRecomSongDictionForUser(self, df_object: supd.SUPandas, user_songs: list) -> dict:
+        # 歌曲相似后得到的数据
+        diction = df_object.makeTopNSongs(
+            # 对用户收藏的歌曲，每首获取最相似的前5首
+            # 将这个数据进行几个合并，
+            # 然后将数据进行随机提取，
+            # 提取其中的 前5个
+            similar=df_object.makeSimilarityBetweenItem(),
+            song_cnt=5)
+        list_songs = self.makeSongIdList(user_songs)
+        # 通过list_songs 和 diction 获取需要的歌曲
+        list_songs_result = self.makeSongsFromSimilarDict(
+            diction=diction, songs=list_songs)
+        # 构造数据字典，方便之后用于保存，需要有id和name和数据
+        return {self.user_id: list_songs_result}
+
+    def makeSongsFromSimilarDict(self, diction: dict, songs: list, song_num=30):
+        list_ids = list(diction)
+        list_tmp = []
+        for item in list_ids:
+            if item in songs:
+                list_tmp.extend(diction[item])
+        list_tmp = list(set(list_tmp))
+        # 删除songs 中出现的id
+        for item in songs:
+            if item in list_tmp:
+                list_tmp.pop(list_tmp.index(item))
+            else:
+                continue
+        list_result = random.sample(list_tmp, song_num)
+        return list_result
+
+    def makeSongIdList(self, array: list):
+        list_tmp = []
+        for item in array:
+            list_tmp.append(item['id'])
+        return list_tmp
+
+    def checkList(self, src_list: list, dest_list: list):
+        for item in src_list:
+            if item not in dest_list:
+                print(True)
+
+    def saveUserSongRecomAnswer(self, diction: dict, update_name, collection=""):
         docs = self.changeDataFormat(
-            diction=diction, list_keys=list(diction))
-        # print(docs[0])
+            diction=diction, list_keys=list(diction), update_name=update_name)
         self.wdb.writeDocument(
-            docs=docs, collection_name="song")
+            docs=docs, collection_name=collection)
         return docs  # 用户输出方法体中变量
 
     # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
@@ -395,14 +419,13 @@ class UserSongRecomAfterSongSimilarity(object):
     # 同时应该考虑更新最新的推荐用户数列，
     # 以便于后面的再次使用
     # 通过id进行数据存在判断，
-    def changeDataFormat(self, diction: dict, list_keys: list):
+    def changeDataFormat(self, diction: dict, list_keys: list, update_name=""):
         docs = []
         for key in list_keys:
             diction_tmp = {
                 "id": key,
-                "name": key,
-                "SimilaritySong": diction[key]
+                "name": self.usr.user_name,
+                update_name: diction[key]
             }
-            # print(diction_tmp)
             docs.append(diction_tmp)
         return docs

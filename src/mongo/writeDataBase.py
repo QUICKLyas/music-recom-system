@@ -1,4 +1,4 @@
-import pojo.Mongo as connect
+import mongo.Mongo as connect
 
 
 class WriteColle (object):

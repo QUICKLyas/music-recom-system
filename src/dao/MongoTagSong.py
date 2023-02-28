@@ -1,4 +1,4 @@
-import pojo.Mongo as mongoConnect
+import mongo.Mongo as mongoConnect
 
 
 class MongoTagSong(object):

@@ -13,6 +13,7 @@ import panda.SongUser as supd
 
 
 class UserSongRecom (object):
+
     def __init__(self, user_id=None) -> None:
         # 当针对单个用户时，设定目标
         self.user_id = user_id
@@ -100,6 +101,7 @@ class UserSongRecom (object):
         # 歌曲推荐的结果
         # sign 值默认时表示获取所有的用户
         dict_user_song = self.makeRecomDcition(df_object=sudf)
+        # print(dict_user_song)
         return dict_user_song
 
     # 只获取一个用户的推荐歌曲信息
@@ -124,7 +126,8 @@ class UserSongRecom (object):
         data = self.makeXYMatric(docs=docs)
         sudf = supd.SUPandas(datas=list(
             map(list, data.toarray())), items=self.y, users=self.x)
-        # 歌曲推荐的结果
+        # 歌曲推荐的结果，应该再一次保存用户列
+        # 计划再处理数据的同时保存相似用户结果
         dict_user_song = self.makeRecomDcition(df_object=sudf, sign=-1)
         return dict_user_song
 
@@ -135,6 +138,7 @@ class UserSongRecom (object):
                       'songs.id': 1, 'songs.name': 1}
         docs = self.rdb.findDocument(
             collection_name="like", query=query, projection=projection, limit=-1)
+        # print(docs)
         return docs
 
     # 根据docs 生成xy轴 ，矩阵
@@ -208,15 +212,20 @@ class UserSongRecom (object):
         # 判断是只取出一个用户还是取出多个用户
         # sign == -1 的时候使用 取出一个用户的信息
         # 统一构成推荐列表
+        # 另存此处的topN_user
         diction = df_object.makeTopNUsers(
             similar=df_object.makeSimilarityBetweenUser(),
             sign=1)
-        diction = df_object.makeRecomUserBySong(
-            topN=diction, song_num=song_num)
+        # print()
+        list_from_dict = self.makeListIdWithUserName(
+            list_name=diction[self.user_name])
+        diction_song = df_object.makeRecomUserBySong(
+            topN=diction, song_num=5)
         # print(diction)
         if sign == -1:
             # 计算所有的推荐的结果，但是返回的只有一个人
-            dict_result = {self.user_name: diction[self.user_name]}
+            dict_result = {self.user_name: [
+                list_from_dict, diction_song[self.user_name]]}
             return dict_result
         else:
             # 直接将所有的信息返回
@@ -231,7 +240,9 @@ class UserSongRecom (object):
         return list_tmp_row
 
     # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
-    # 同时需要有 id,name,RecomSong
+    # 同时需要有 id,name,RecomSong,
+    # 同时应该考虑更新最新的推荐用户数列，
+    # 以便于后面的再次使用
     # 通过id进行数据存在判断，
     def changeDataFormat(self, diction: dict, list_keys: list):
         docs = []
@@ -239,8 +250,10 @@ class UserSongRecom (object):
             diction_tmp = {
                 "id": self.users_id[self.users_name.index(key)],
                 "name": key,
-                "RecomSong": diction[key]
+                "RecomUsers": diction[key][0],
+                "RecomSong": diction[key][1]
             }
+            # print(diction_tmp)
             docs.append(diction_tmp)
         return docs
 
@@ -251,3 +264,145 @@ class UserSongRecom (object):
         self.wdb.writeDocument(
             docs=docs, collection_name="recom")
         return docs  # 用户输出方法体中变量
+
+    def makeListIdWithUserName(self, list_name: list) -> list:
+        list_id = []
+        for name in list_name:
+            list_id.append(self.users_id[self.users_name.index(name)])
+        return list_id
+
+
+# 此类重新获取一边用户集，再一次对数据进行一次歌曲的相似度计算，从而获取歌曲的topN计算
+# 本方法只限定在目标用户，不会 所有用户
+# 此处算法，考虑用过推荐歌曲的相似歌曲，设定一次找寻最相似歌曲数量为5首，
+# 算法基于用户和tag
+# 首先基于tag 将歌曲进行一个获取，尽量获取tag重合度较高的歌曲，
+# 然后根据mongo 的获取方法，获取拥有这几首歌的用户，进行相似度计算，最后推荐这些歌曲
+# 受限于手边的数据集不能够组成比较完备 的数据集，所暂时不进行考虑，
+# 但依然实现歌曲-歌曲相似度计算的程序，用来推荐相似歌曲，但是未考虑使用什么表格进行存储，所以暂时将数据存储到song-detial中，并以SimilaritySong 的array样式 的id进行存储
+class UserSongRecomAfterSongSimilarity(object):
+    def __init__(self, user_id=None) -> None:
+        self.user_id = user_id
+        if self.user_id == None:
+            self.query = {}
+        else:
+            self.query = {
+                'id': self.user_id
+            }
+        self.usr = UserSongRecom()
+        self.rdb = rdb.ReadColle()
+        self.wdb = wdb.WriteColle()
+        pass
+
+    def makeRecomBySongSimilarityAnswer(self, limit="ALL"):
+        print("[" + t.asctime(t.localtime()) + "]" +
+              "Start" + "make recommend song answer ( limit", limit, "song-song )")
+        # self.saveUserSongRecomAnswer(self.makeRecomAnswerSong())
+        if limit == "ALL":
+            self.makeRecomAnswerSong(sign=0)
+        else:
+            self.makeRecomAnswerSong(sign=1)
+
+        print("successfully done")
+
+    # 只获取一个用户的歌曲信息，从而生成其中所有歌曲的相似歌曲的结果
+    def makeRecomAnswerSong(self, sign=0):
+        # 获取recom中之前设置的数据
+        projections = {"_id": 0, "id": 1, "name": 1, "RecomUsers": 1}
+        doc = self.rdb.findDocument(
+            collection_name="recom", query=self.query, projection=projections)
+        # 储存请求用户的名字
+        self.usr.user_name = doc[0]['name']
+        # 跟据数据库给的RecUsers来处理数据
+        list_users_id = []
+        list_users_id.append(self.usr.user_id)
+        # print(self.user_id, list_users_id)
+        # users_id 合集，之后会通过这个来形成x轴坐标
+        list_users_id.extend(doc[0]['RecomUsers'])
+        # 构成xy轴的内容源头
+        docs = self.usr.getSongsWithUserIdFromMongo(array=list_users_id)
+        # matrix_data = data
+        # pandas_x = self.x
+        # pandas_y = self.y
+        data = self.usr.makeXYMatric(docs=docs)
+        sudf = supd.SUPandas(datas=list(
+            map(list, data.toarray())), items=self.usr.y, users=self.usr.x)
+        # 歌曲推荐的结果，应该再一次保存用户列
+        # 计划再处理数据的同时保存相似用户结果
+        # 当sign = 1 的时候 是表示求相似歌曲， sign 为 2 时 是生成用户的推荐结果
+        dict_song = {}
+        match sign:
+            case 0:
+                dict_song = self.makeSimilaritySongDiction(
+                    df_object=sudf)
+            case 1:
+                projections = {"_id": 0, "songs": 1}
+                dict_song = self.makeRecomSong(
+                    df_object=sudf, user_songs=self.rdb.findDocument(
+                        collection_name="like", query=self.query, projection=projections)[0]['songs'])
+                print(dict_song)
+                # print(dict_user_song)
+        return dict_song
+
+    def makeRecomSong(self, df_object: supd.SUPandas, user_songs: list):
+        diction = df_object.makeTopNSongs(
+            # 对用户收藏的歌曲，每首获取最相似的前5首
+            # 将这个数据进行几个合并，
+            # 然后将数据进行随机提取，
+            # 提取其中的 前5个
+            similar=df_object.makeSimilarityBetweenItem(),
+            song_cnt=5)
+        print(len(diction))
+        self.makeSongIdList(user_songs)
+        # print(user_songs.keys('id'))
+        # 循环用户自己的歌曲
+        # 首先获取用户收藏的歌曲
+        # self.saveUserSongRecomAnswer(diction)
+        return
+
+    def makeSongIdList(self, array: list):
+        list_tmp = []
+        print(len(array))
+        for item in array:
+            list_tmp.append(item['id'])
+        print(len(list_tmp))
+        return
+
+    def makeSimilaritySongDiction(self, df_object: supd.SUPandas):
+        # 判断是只取出一个用户直接获取所有歌曲中最相似的歌曲
+        # 统一构成推荐列表
+        # 另存此处的topN_songs ，key是song标签，将这些数据存储到数据库中
+        # [self.user_id]
+        diction = df_object.makeTopNSongs(
+            # 对用户收藏的歌曲，每首获取最相似的前5首
+            # 将这个数据进行几个合并，
+            # 然后将数据进行随机提取，
+            # 提取其中的 前5个
+            similar=df_object.makeSimilarityBetweenItem(),
+            song_cnt=5)
+        self.saveUserSongRecomAnswer(diction)
+
+    def saveUserSongRecomAnswer(self, diction: dict):
+        docs = self.changeDataFormat(
+            diction=diction, list_keys=list(diction))
+        # print(docs[0])
+        self.wdb.writeDocument(
+            docs=docs, collection_name="song")
+        return docs  # 用户输出方法体中变量
+
+    # 返回的结果是一个diction，所以需要重组，生成保存所需要的list
+    # 同时需要有 id,name,RecomSong,
+    # 同时应该考虑更新最新的推荐用户数列，
+    # 以便于后面的再次使用
+    # 通过id进行数据存在判断，
+    def changeDataFormat(self, diction: dict, list_keys: list):
+        docs = []
+        for key in list_keys:
+            diction_tmp = {
+                "id": key,
+                "name": key,
+                "SimilaritySong": diction[key]
+            }
+            # print(diction_tmp)
+            docs.append(diction_tmp)
+        return docs

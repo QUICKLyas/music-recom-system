@@ -52,6 +52,18 @@ class SUPandas():
                         df_topN_sorted, threshold=average)
         return topN_users
 
+    # 生成topN_song 找到相似的歌曲
+    # 0 默认获取前50
+    # 1 根据相似度的平均值获取高于平均值的用户
+    def makeTopNSongs(self, similar: pd.DataFrame, song_cnt=50, sign=0) -> dict:
+        topN_users = {}
+        for i in similar.index:
+            df_topN = similar.loc[i].drop([i])
+            df_topN_sorted = df_topN.sort_values(ascending=False)
+            topN = list(df_topN_sorted.index[:song_cnt])
+            topN_users[i] = topN
+        return topN_users
+
     # 通过这些用户获取相似的歌曲，并排除某个用户的已经有的歌曲
     def makeRecomUserBySong(self, topN: dict, song_num: int):
         results = {}

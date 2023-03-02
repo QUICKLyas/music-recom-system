@@ -224,7 +224,7 @@ class UserSongRecom (object):
         list_from_dict = self.makeListIdWithUserName(
             list_name=diction[self.user_name])
         diction_song = df_object.makeRecomUserBySong(
-            topN=diction, song_num=5)
+            topN=diction, song_num=30)
         # print(diction)
         if sign == -1:
             # 计算所有的推荐的结果，但是返回的只有一个人

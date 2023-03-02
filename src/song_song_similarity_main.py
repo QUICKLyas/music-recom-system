@@ -11,3 +11,7 @@ mongomus = mus.UserSongRecomAfterSongSimilarity(
     user_id="1a78ac10b67911ed95dd00155dadb10b")
 # 1a78ac10b67911ed95dd00155dadb10b
 mongomus.makeRecomBySongSimilarityAnswer(limit="ONE")
+mongomus_songs = mus.UserSongRecomAfterSongSimilarity(
+    user_id="1a78ac10b67911ed95dd00155dadb10b")
+# 1a78ac10b67911ed95dd00155dadb10b
+mongomus_songs.makeRecomBySongSimilarityAnswer(limit="ALL")

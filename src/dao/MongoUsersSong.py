@@ -44,6 +44,9 @@ class UserSongRecom (object):
         }
         pass
 
+    def setUserId(self, user_id):
+        self.user_id = user_id
+
     # app调用这个方法来启动数据计算
     # limit 为 ALL 的时候，采用 user-song的相似度来对用户群进行一个较大的一次性推荐
     # 当limit 不为 ALL 的时候，采用处理tag 后 获取的相关性最高的一批用户构建一个 user-song 形成一个推荐表，来推荐歌曲
@@ -291,6 +294,8 @@ class UserSongRecomAfterSongSimilarity(object):
                 'id': self.user_id
             }
         self.usr = UserSongRecom()
+        self.usr.setUserId(user_id=user_id)
+        # print(self.usr.user_id)
         self.rdb = rdb.ReadColle()
         self.wdb = wdb.WriteColle()
         pass
@@ -303,7 +308,7 @@ class UserSongRecomAfterSongSimilarity(object):
         if limit == "ALL":
             self.saveUserSongRecomAnswer(
                 self.makeRecomAnswerSong(
-                    sign=0, update_name="SimilaritySongs", collection="song"))
+                    sign=0), update_name="SimilaritySongs", collection="song")
         else:
             self.saveUserSongRecomAnswer(
                 self.makeRecomAnswerSong(sign=1), update_name="RecomSong", collection="recom")
@@ -315,12 +320,12 @@ class UserSongRecomAfterSongSimilarity(object):
         # 获取recom中之前设置的数据
         projections = {"_id": 0, "id": 1, "name": 1, "RecomUsers": 1}
         doc = self.rdb.findDocument(
-            collection_name="recom", query=self.query, projection=projections)
+            collection_name="recom", query=self.query, projection=projections, limit=1)
         # 储存请求用户的名字
         self.usr.user_name = doc[0]['name']
         # 跟据数据库给的RecUsers来处理数据
         list_users_id = []
-        list_users_id.append(self.usr.user_id)
+        list_users_id.append(self.user_id)
         # print(self.user_id, list_users_id)
         # users_id 合集，之后会通过这个来形成x轴坐标
         list_users_id.extend(doc[0]['RecomUsers'])

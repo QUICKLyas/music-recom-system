@@ -41,6 +41,7 @@ class SUPandas():
         for i in similar.index:
             df_topN = similar.loc[i].drop([i])
             df_topN_sorted = df_topN.sort_values(ascending=False)
+
             topN = []
             match sign:
                 case 0:  # 获取最相似的5个用户
@@ -60,6 +61,8 @@ class SUPandas():
         for i in similar.index:
             df_topN = similar.loc[i].drop([i])
             df_topN_sorted = df_topN.sort_values(ascending=False)
+            # print(df_topN_sorted[100:])
+            # break
             topN = list(df_topN_sorted.index[:song_cnt])
             topN_users[i] = topN
         return topN_users

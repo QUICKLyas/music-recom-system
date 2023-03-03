@@ -1,7 +1,14 @@
 #!/usr/bin/python3
 import dao.MongoTagUser as mtu
 
-mongotu = mtu.TagofSongUserRecom(user_id="1a78ac10b67911ed95dd00155dadb10b")
+import utils.FileUse as fu
+
+
+# 设置默认的文件读取路径
+user_id = fu.readJsonFile(path='data/user_target.json')
+
+
+mongotu = mtu.TagofSongUserRecom(user_id=user_id['name'])
 mongotu.makeRecomUsersSetAnswer(limit="ONE")
 # mongtu = mtu.TagofSongUserRecom()
 # mongtu.makeRecomUsersSetAnswer(limit="ALL")

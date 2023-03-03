@@ -1,7 +1,10 @@
 #!/usr/bin/python3
 import dao.MongoUsersSong as mus
+import utils.FileUse as fu
 
-mongomus = mus.UserSongRecom(user_id="1a78b764b67911ed95dd00155dadb10b")
+user_id = fu.readJsonFile(path='data/user_target.json')
+
+mongomus = mus.UserSongRecom(user_id=user_id['name'])
 mongomus.makeRecomSongAnswer(limit="ONE")
 
 # mongomus_songs = mus.UserSongRecomAfterSongSimilarity(

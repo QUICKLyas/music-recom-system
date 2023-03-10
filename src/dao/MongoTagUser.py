@@ -145,8 +145,10 @@ class TagofSongUserRecom():
             # print(Counter(item['tags']))
             # print(item)
             list_tmp = []
+            print(item)
             for song in item['songs']:
                 # 该歌曲的tags
+                print(song['union'])
                 list_tmp.extend(song['union'][0]['tags'])
                 # print(Counter(list_tmp))
                 # break
@@ -246,7 +248,7 @@ class TagofSongUserRecom():
             diction_tmp = {
                 "id": self.user_id,
                 "name": key,
-                "RecomUsers": diction[key]
+                "recomUsers": diction[key]
             }
             docs.append(diction_tmp)
         return docs
@@ -345,7 +347,7 @@ class TagofUserCountRate():
             diction_tmp = {
                 "id": self.list_id[self.list_name.index(key)],
                 "name": key,
-                "TagsRate": diction[key]
+                "tagsRate": diction[key]
             }
             docs.append(diction_tmp)
         return docs

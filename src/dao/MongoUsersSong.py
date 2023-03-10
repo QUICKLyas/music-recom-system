@@ -111,7 +111,7 @@ class UserSongRecom (object):
     # 只获取一个用户的推荐歌曲信息
     def makeRecomAnswerSong(self):
         # 获取recom中之前设置的数据
-        projections = {"_id": 0, "id": 1, "name": 1, "RecomUsers": 1}
+        projections = {"_id": 0, "id": 1, "name": 1, "recom_users": 1}
         doc = self.rdb.findDocument(
             collection_name="recom", query=self.query, projection=projections)
         # 储存请求用户的名字
@@ -121,7 +121,7 @@ class UserSongRecom (object):
         list_users_id.append(self.user_id)
         # print(self.user_id, list_users_id)
         # users_id 合集，之后会通过这个来形成x轴坐标
-        list_users_id.extend(doc[0]['RecomUsers'])
+        list_users_id.extend(doc[0]['recomUsers'])
         # 构成xy轴的内容源头
         docs = self.getSongsWithUserIdFromMongo(array=list_users_id)
         # matrix_data = data
@@ -254,8 +254,8 @@ class UserSongRecom (object):
             diction_tmp = {
                 "id": self.users_id[self.users_name.index(key)],
                 "name": key,
-                "RecomUsers": diction[key][0],
-                "RecomSong": diction[key][1]
+                "recom_users": diction[key][0],
+                "recom_song": diction[key][1]
             }
             # print(diction_tmp)
             docs.append(diction_tmp)
@@ -308,17 +308,17 @@ class UserSongRecomAfterSongSimilarity(object):
         if limit == "ALL":
             self.saveUserSongRecomAnswer(
                 self.makeRecomAnswerSong(
-                    sign=0), update_name="SimilaritySongs", collection="song")
+                    sign=0), update_name="similaritySongs", collection="song")
         else:
             self.saveUserSongRecomAnswer(
-                self.makeRecomAnswerSong(sign=1), update_name="RecomSong", collection="recom")
+                self.makeRecomAnswerSong(sign=1), update_name="recomSong", collection="recom")
 
         print("successfully done")
 
     # 只获取一个用户的歌曲信息，从而生成其中所有歌曲的相似歌曲的结果
     def makeRecomAnswerSong(self, sign=0):
         # 获取recom中之前设置的数据
-        projections = {"_id": 0, "id": 1, "name": 1, "RecomUsers": 1}
+        projections = {"_id": 0, "id": 1, "name": 1, "recom_users": 1}
         doc = self.rdb.findDocument(
             collection_name="recom", query=self.query, projection=projections, limit=1)
         # 储存请求用户的名字
@@ -328,7 +328,7 @@ class UserSongRecomAfterSongSimilarity(object):
         list_users_id.append(self.user_id)
         # print(self.user_id, list_users_id)
         # users_id 合集，之后会通过这个来形成x轴坐标
-        list_users_id.extend(doc[0]['RecomUsers'])
+        list_users_id.extend(doc[0]['recomUsers'])
         # 构成xy轴的内容源头
         docs = self.usr.getSongsWithUserIdFromMongo(array=list_users_id)
         # matrix_data = data

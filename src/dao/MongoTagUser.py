@@ -145,13 +145,14 @@ class TagofSongUserRecom():
             # print(Counter(item['tags']))
             # print(item)
             list_tmp = []
-            print(item)
+            # print(item)
             for song in item['songs']:
                 # 该歌曲的tags
-                print(song['union'])
-                list_tmp.extend(song['union'][0]['tags'])
-                # print(Counter(list_tmp))
-                # break
+                if type(song['union'][0]) is type({}):
+                    list_tmp.extend(song['union'][0]['tags'])
+                else:
+                    list_tmp.extend(song['union'])
+            # print(type(list_tmp))
             arr = Counter(list_tmp)
             diction[item['name']] = dict(arr)
         return diction
@@ -177,6 +178,7 @@ class TagofSongUserRecom():
             # 循环每个item内的tags形成行标
             list_tmp = []  # 所有用户拥有的tags（没有去重的情况下）
             col_tmp = []  # 暂存当前用户所在位置，用于之后形成的matric 时作为x值
+            # print(item['tags'])
             for tag in item['tags']:
                 list_tmp.append(tag)
                 col_tmp.append(int(index_item))

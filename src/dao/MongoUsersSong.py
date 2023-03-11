@@ -111,7 +111,7 @@ class UserSongRecom (object):
     # 只获取一个用户的推荐歌曲信息
     def makeRecomAnswerSong(self):
         # 获取recom中之前设置的数据
-        projections = {"_id": 0, "id": 1, "name": 1, "recom_users": 1}
+        projections = {"_id": 0, "id": 1, "name": 1, "recomUsers": 1}
         doc = self.rdb.findDocument(
             collection_name="recom", query=self.query, projection=projections)
         # 储存请求用户的名字
@@ -318,7 +318,7 @@ class UserSongRecomAfterSongSimilarity(object):
     # 只获取一个用户的歌曲信息，从而生成其中所有歌曲的相似歌曲的结果
     def makeRecomAnswerSong(self, sign=0):
         # 获取recom中之前设置的数据
-        projections = {"_id": 0, "id": 1, "name": 1, "recom_users": 1}
+        projections = {"_id": 0, "id": 1, "name": 1, "recomUsers": 1}
         doc = self.rdb.findDocument(
             collection_name="recom", query=self.query, projection=projections, limit=1)
         # 储存请求用户的名字

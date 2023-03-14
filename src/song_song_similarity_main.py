@@ -18,7 +18,7 @@ mongomus = mus.UserSongRecomAfterSongSimilarity(
 # 1a78ac10b67911ed95dd00155dadb10b
 mongomus.makeRecomBySongSimilarityAnswer(limit="ONE")
 # 重新获取用户的信息，从而生成一定数量的相似歌曲
-mongomus_songs = mus.UserSongRecomAfterSongSimilarity(
-    user_id=user_id['user_id'])
-# 1a78ac10b67911ed95dd00155dadb10b
-mongomus_songs.makeRecomBySongSimilarityAnswer(limit="ALL")
+# mongomus_songs = mus.UserSongRecomAfterSongSimilarity(
+#     user_id=user_id['user_id'])
+# # 1a78ac10b67911ed95dd00155dadb10b
+# mongomus_songs.makeRecomBySongSimilarityAnswer(limit="ALL")

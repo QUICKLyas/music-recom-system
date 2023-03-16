@@ -308,7 +308,7 @@ class UserSongRecomAfterSongSimilarity(object):
         if limit == "ALL":
             self.saveUserSongRecomAnswer(
                 self.makeRecomAnswerSong(
-                    sign=0), update_name="similaritySongs", collection="song")
+                    sign=0), update_name="similaritySong", collection="song")
         else:
             self.saveUserSongRecomAnswer(
                 self.makeRecomAnswerSong(sign=1), update_name="recomSong", collection="recom")
